@@ -1,0 +1,69 @@
+import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import logo from "@/assets/regis-logo.jpeg";
+
+const items = [
+  { title: "Inicio", url: "/", icon: Building2 },
+  { title: "PILA", url: "/pila", icon: FileText },
+  { title: "Exámenes Médicos", url: "/medical-exams", icon: Stethoscope },
+  { title: "Matrices de Riesgo", url: "/risk-matrices", icon: ShieldAlert },
+  { title: "Comités", url: "/committees", icon: Users },
+  { title: "Planes de Emergencia", url: "/emergency-plans", icon: Siren },
+];
+
+export function AppSidebar() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const { pathname } = useLocation();
+  const isActive = (path: string) => (path === "/" ? pathname === "/" : pathname.startsWith(path));
+
+  return (
+    <Sidebar collapsible="icon" className="border-r-0">
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex items-center gap-3 px-2 py-3">
+          <div className="h-9 w-9 rounded-md bg-white flex items-center justify-center shrink-0 overflow-hidden">
+            <img src={logo} alt="Regis Colombia" className="h-9 w-9 object-contain" />
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col leading-tight">
+              <span className="text-sidebar-foreground font-semibold tracking-wide text-sm">REGIS COLOMBIA</span>
+              <span className="text-sidebar-foreground/60 text-[10px] uppercase tracking-wider">SG-SST Platform</span>
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Módulos</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                    <NavLink to={item.url} end={item.url === "/"}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
