@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ViewModeProvider } from "@/context/ViewModeContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Pila from "./pages/Pila";
@@ -11,6 +13,9 @@ import MedicalExams from "./pages/MedicalExams";
 import RiskMatrices from "./pages/RiskMatrices";
 import Committees from "./pages/Committees";
 import EmergencyPlans from "./pages/EmergencyPlans";
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -20,21 +25,28 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <ViewModeProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/pila" element={<Pila />} />
-              <Route path="/medical-exams" element={<MedicalExams />} />
-              <Route path="/risk-matrices" element={<RiskMatrices />} />
-              <Route path="/committees" element={<Committees />} />
-              <Route path="/emergency-plans" element={<EmergencyPlans />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </ViewModeProvider>
+      <AuthProvider>
+        <ViewModeProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/pila" element={<Pila />} />
+                  <Route path="/medical-exams" element={<MedicalExams />} />
+                  <Route path="/risk-matrices" element={<RiskMatrices />} />
+                  <Route path="/committees" element={<Committees />} />
+                  <Route path="/emergency-plans" element={<EmergencyPlans />} />
+                </Route>
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ViewModeProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
