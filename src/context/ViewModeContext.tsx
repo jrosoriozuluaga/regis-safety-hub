@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 export type ViewMode = "admin" | "client";
 
@@ -11,7 +12,14 @@ type Ctx = {
 const ViewModeContext = createContext<Ctx | null>(null);
 
 export function ViewModeProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<ViewMode>("admin");
+
+  // Sync with the logged-in user's role on login.
+  useEffect(() => {
+    if (user) setMode(user.role);
+  }, [user]);
+
   return (
     <ViewModeContext.Provider
       value={{ mode, setMode, toggle: () => setMode(mode === "admin" ? "client" : "admin") }}

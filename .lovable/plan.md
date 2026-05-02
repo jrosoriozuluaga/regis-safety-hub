@@ -1,94 +1,36 @@
+# Login + Recovery (Frontend Mock)
 
-# Regis Colombia — SG-SST Dashboard (Frontend Shell)
+Adds a branded authentication shell to the Regis Colombia dashboard. No real backend — credentials are validated against mock data, but the structure is built to swap in Supabase later by editing one file (`src/services/auth.ts`).
 
-A modern, enterprise-grade React dashboard UI for an Occupational Health & Safety consulting firm. **Frontend only**, fully populated with mock data, structured so you can export to GitHub and wire a Supabase (or any) backend later with minimal friction.
+## What gets built
 
-## Design System
+### 1. New pages
+- `/login` — NIT + password form, "Forgot password?" link, Regis navy branding, logo, "Recordarme" checkbox.
+- `/forgot-password` — Two-field form (NIT + email). On submit shows a success card: "If the NIT and email match, you'll receive a reset link." (mock — no email sent).
+- `/reset-password` — Placeholder page reachable via the success state, with new password + confirm fields. Mock submit returns to login with a toast.
 
-Tokens added to `index.css` and `tailwind.config.ts` (all HSL):
+### 2. Session + profile layer
+- New type `UserProfile { nit, companyName, contactEmail, role: 'admin' | 'client' }` in `src/types/domain.ts`.
+- New mock file `src/data/mockUsers.ts` — 2-3 seeded accounts (one admin, one client) with NIT, password, email, company name.
+- New `src/services/auth.ts` exposing: `login(nit, password)`, `logout()`, `requestReset(nit, email)`, `resetPassword(token, newPassword)`, `getCurrentUser()`. All read/write to `localStorage` under `regis.session`.
+- New `src/context/AuthContext.tsx` providing `{ user, login, logout, loading }`.
 
-- `--primary` Navy `#3B4B6E` → sidebar bg, primary buttons, headings emphasis
-- `--success` Bright Green `#25D366` → success badges, progress, FAB
-- `--background` Slate `#F8FAFC` → main content area
-- `--card` White → cards
-- `--foreground` `#1E293B` (headings), `--muted-foreground` `#475569` (body)
-- Status tokens: success (green), warning (amber), destructive (red)
-- Subtle card shadow utility, generous spacing, Inter sans-serif
+### 3. Wire-in
+- `src/App.tsx`: wrap routes in `AuthProvider`. Add public routes `/login`, `/forgot-password`, `/reset-password`. Wrap the `AppLayout` route group in a `ProtectedRoute` component that redirects unauthenticated users to `/login`.
+- `ViewModeContext`: initialize `mode` from `user.role` on login (admin → admin view, client → client view). Manual toggle still works.
+- `AppHeader`: show logged-in company name + a "Cerrar sesión" item in the user dropdown that calls `logout()` and redirects to `/login`.
 
-Uploaded `Logo-Regis.png` copied to `src/assets/` and shown in the sidebar header next to a "REGIS COLOMBIA" wordmark (white on navy).
+## Design
+- Centered card on a slate background, navy header bar with the Regis logo.
+- Inputs use existing Shadcn `Input` / `Label` / `Button`. Primary button uses navy; success states use bright green.
+- Spanish copy throughout ("NIT de la empresa", "Contraseña", "¿Olvidaste tu contraseña?", "Ingresar").
+- Zod validation: NIT required (digits only, 9–10 chars), password min 6, email format on recovery.
 
-## Layout
+## Technical details
+- `ProtectedRoute` reads `useAuth()`; while `loading`, renders a spinner; if no user, `<Navigate to="/login" replace />`.
+- `auth.ts` is the single seam for future Supabase wiring — swap localStorage calls for `supabase.auth.signInWithPassword` etc. without touching pages.
+- Mock seed accounts will be documented in `README-handoff.md` so you can log in immediately.
 
-```text
-┌─────────────────────────────────────────────────────┐
-│ Sidebar (navy)  │  Header: view toggle ·            │
-│  • Logo         │          notifications · profile  │
-│  • Home         ├───────────────────────────────────┤
-│  • PILA         │                                   │
-│  • Medical      │   Page content (white cards on    │
-│  • Risk Matrix  │   light slate background)         │
-│  • Committees   │                                   │
-│  • Emergency    │                                   │
-└─────────────────────────────────────────────────────┘
-```
-
-- Built with shadcn `Sidebar` (`collapsible="icon"`, navy themed via sidebar CSS vars).
-- Header: shadcn `DropdownMenu` for profile + notifications, a toggle for **Admin View ↔ Client View** stored in a lightweight React Context (`ViewModeProvider`).
-- Routing via `react-router-dom`; layout wraps all module routes via `<Outlet />`.
-
-## Pages / Routes
-
-| Route | Module | Key UI |
-|---|---|---|
-| `/` | Dashboard | Admin: KPI cards (total clients, avg compliance) + companies table with `Progress` bars. Client: large circular progress ring (92%) + "Pending Actions" list |
-| `/pila` | PILA | Table (Company, Month, Status) with colored `Badge`s; "Upload PILA" opens `Dialog` with drag-and-drop zone |
-| `/medical-exams` | Medical Exams | Split: left dropzone card; right table (Worker, Recommendations, Restrictions) with mock extracted rows |
-| `/risk-matrices` | Risk Matrices GTC 45 | CIIU code `Input` + "Generate Matrix" button; list of past matrices with download icon |
-| `/committees` | Committee Minutes | Company `Select`, Points Discussed `Textarea`, attendees with `Checkbox`, "Generate Document" button |
-| `/emergency-plans` | Emergency Plans | Large mic button (fake recording pulse), upload alternative, mock transcribed plan in `Textarea` |
-
-A floating green WhatsApp-style FAB appears bottom-right on all pages.
-
-## Component Structure (modular, backend-ready)
-
-```text
-src/
-  components/
-    layout/        AppLayout, AppSidebar, AppHeader, ViewModeToggle
-    dashboard/     AdminDashboard, ClientDashboard, CircularProgress
-    common/        StatusBadge, FileDropzone, PageHeader, WhatsAppFab
-  context/         ViewModeContext.tsx
-  data/            mockCompanies, mockPila, mockMedicalExams,
-                   mockMatrices, mockCommittee, mockNotifications
-  services/        companies.ts, pila.ts, medicalExams.ts,
-                   matrices.ts, committee.ts, emergency.ts
-                   // each exports async functions returning mock data
-                   // (e.g. listCompanies(), uploadPila(file))
-                   // Swap the body for Supabase calls later — signatures stay.
-  types/           domain.ts  // Company, PilaRecord, MedicalExam, etc.
-  pages/           Dashboard, Pila, MedicalExams, RiskMatrices,
-                   Committees, EmergencyPlans, NotFound
-```
-
-### Why this is easy to wire later
-
-- **Service layer indirection**: pages call `services/*` functions, never touch mock arrays directly. Replacing each function body with a Supabase query is a localized change.
-- **Typed domain models** in `src/types/domain.ts` give you the exact shape your Supabase tables should match.
-- **No hidden state**: all mock data lives in `src/data/`. Deleting that folder + the imports inside `services/` is the cleanup checklist.
-- **Auth-ready seams**: `ViewModeContext` is the placeholder for a future `useAuth()` / role check. Header profile dropdown has a stubbed "Sign out" item.
-- **File uploads** go through a single `FileDropzone` component with an `onFiles(files)` callback — wire it once to Supabase Storage later.
-- A short `README-handoff.md` will document the swap points (services, mock data, env vars to add).
-
-## Mock Data Highlights
-
-- Companies: Nike, Ferrero, Danone, Bavaria, Postobón, Alpina, Crepes & Waffles, Éxito (compliance 62–98%).
-- PILA: ~8 rows mixing Pending / Uploaded / Overdue.
-- Medical exams: 5 workers with realistic recommendations/restrictions in Spanish.
-- Risk matrices: 4 prior CIIU entries with date + download.
-- Committee members: 6 pre-loaded names with roles.
-- Notifications: 3 sample items in header dropdown.
-
-## Out of Scope
-
-- No backend, auth, file storage, or AI processing — buttons and dropzones are visual stubs with `sonner` toast feedback.
-- No Supabase wiring in this pass; structure leaves explicit seams.
+## Files
+- New: `src/pages/Login.tsx`, `src/pages/ForgotPassword.tsx`, `src/pages/ResetPassword.tsx`, `src/components/auth/ProtectedRoute.tsx`, `src/context/AuthContext.tsx`, `src/services/auth.ts`, `src/data/mockUsers.ts`
+- Edited: `src/App.tsx`, `src/types/domain.ts`, `src/context/ViewModeContext.tsx`, `src/components/layout/AppHeader.tsx`, `README-handoff.md`

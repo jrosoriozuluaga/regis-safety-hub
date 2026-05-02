@@ -52,3 +52,11 @@ export type PendingAction = {
   due: string;
   priority: "high" | "medium" | "low";
 };
+
+export type UserRole = "admin" | "client";
+export type UserProfile = {
+  nit: string;
+  companyName: string;
+  contactEmail: string;
+  role: UserRole;
+};
