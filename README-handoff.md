@@ -22,3 +22,24 @@ This is a frontend-only React + Vite + Tailwind + shadcn/ui shell for the SG-SST
 ## Design tokens
 
 All colors are HSL CSS variables in `src/index.css`. Tailwind classes (`bg-primary`, `text-success`, `bg-card`, etc.) map to them via `tailwind.config.ts`. Don't hardcode colors in components.
+
+## Authentication (mock)
+
+Frontend-only. All logic is in `src/services/auth.ts` (the single seam to swap for Supabase).
+
+- Session is stored in `localStorage` under `regis.session`.
+- Mock accounts live in `src/data/mockUsers.ts`.
+- `AuthProvider` (`src/context/AuthContext.tsx`) exposes `{ user, login, logout }`.
+- `ProtectedRoute` guards the dashboard routes.
+- `ViewModeContext` auto-syncs admin/client view from the user's role.
+
+### Test accounts
+| Role   | NIT        | Password    |
+|--------|------------|-------------|
+| admin  | 900123456  | regis2025   |
+| client | 830111222  | cliente2025 |
+| client | 901555888  | demo2025    |
+
+### Swap to Supabase later
+Replace the bodies of `login` / `logout` / `getCurrentUser` / `requestReset` / `resetPassword`
+in `src/services/auth.ts` with `supabase.auth.*` calls. No page or component needs to change.
