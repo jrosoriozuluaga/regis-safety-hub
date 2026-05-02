@@ -12,12 +12,28 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useViewMode } from "@/context/ViewModeContext";
+import { useAuth } from "@/context/AuthContext";
 import { mockNotifications } from "@/data/mockNotifications";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 export function AppHeader() {
   const { mode, setMode } = useViewMode();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const unread = mockNotifications.filter((n) => n.unread).length;
+  const initials = (user?.companyName ?? "RG")
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
 
   return (
     <header className="h-16 border-b bg-card flex items-center gap-3 px-4 sticky top-0 z-30">
@@ -71,22 +87,32 @@ export function AppHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="gap-2 px-2">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">RG</AvatarFallback>
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
             </Avatar>
             <div className="hidden md:flex flex-col items-start leading-tight">
-              <span className="text-sm font-medium">Regis Admin</span>
-              <span className="text-[11px] text-muted-foreground">admin@regiscolombia.com</span>
+              <span className="text-sm font-medium">{user?.companyName ?? "Invitado"}</span>
+              <span className="text-[11px] text-muted-foreground">
+                {user ? `NIT ${user.nit}` : "—"}
+              </span>
             </div>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            <div className="flex flex-col">
+              <span>Mi cuenta</span>
+              {user && <span className="text-[11px] font-normal text-muted-foreground">{user.contactEmail}</span>}
+            </div>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" />Perfil</DropdownMenuItem>
           <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Configuración</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive"><LogOut className="mr-2 h-4 w-4" />Cerrar sesión</DropdownMenuItem>
+          <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />Cerrar sesión
+          </DropdownMenuItem>
+
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
