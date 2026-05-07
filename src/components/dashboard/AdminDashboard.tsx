@@ -23,11 +23,6 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
   );
 }
 
-const CustomBar = (props: any) => {
-  const { x, y, width, height, score } = props;
-  const fill = score >= 86 ? "#16a34a" : score >= 60 ? "#eab308" : "#dc2626";
-  return <rect x={x} y={y} width={width} height={height} rx={6} ry={6} fill={fill} />;
-};
 
 export function AdminDashboard() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -71,7 +66,7 @@ export function AdminDashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                 <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
-                <Bar dataKey="score" shape={<CustomBar />} />
+                <Bar dataKey="score" fill="#16a34a" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
