@@ -45,11 +45,11 @@ export default function RiskMatrices() {
       toast.success("Matriz creada. Cargando riesgos típicos del CIIU...");
 
       if (empresa) {
-        const tipicos = await riesgosTipicosService.getByCiiu(empresa.ciiu);
+        const tipicos = await riesgosTipicosService.getByCiiu(empresa.ciiu_codigo);
         if (tipicos.length > 0) {
-          toast.success(`${tipicos.length} riesgos típicos encontrados para CIIU ${empresa.ciiu}`);
+          toast.success(`${tipicos.length} riesgos típicos encontrados para CIIU ${empresa.ciiu_codigo}`);
         } else {
-          toast.info(`No hay riesgos pre-cargados para CIIU ${empresa.ciiu}`);
+          toast.info(`No hay riesgos pre-cargados para CIIU ${empresa.ciiu_codigo}`);
         }
       }
 
@@ -90,7 +90,7 @@ export default function RiskMatrices() {
                   <SelectTrigger><SelectValue placeholder="Selecciona empresa" /></SelectTrigger>
                   <SelectContent>
                     {empresas.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.razon_social} — CIIU {e.ciiu}</SelectItem>
+                      <SelectItem key={e.id} value={e.id}>{e.razon_social} — CIIU {e.ciiu_codigo}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

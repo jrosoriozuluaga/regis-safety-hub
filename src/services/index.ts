@@ -20,7 +20,7 @@ export const empresasService = {
     const { data, error } = await supabase
       .from("empresas_cliente")
       .select("*")
-      .eq("activa", true)
+      .eq("activo", true)
       .order("razon_social");
     if (error) throw error;
     return data ?? [];
@@ -197,7 +197,7 @@ export const trabajadoresService = {
       .select("*")
       .eq("empresa_id", empresaId)
       .eq("activo", true)
-      .order("nombre_completo");
+      .order("nombre");
     if (error) throw error;
     return data ?? [];
   },
@@ -207,15 +207,16 @@ export const examenesService = {
   listByEmpresa: async (empresaId: string): Promise<ExamenMedico[]> => {
     const { data, error } = await supabase
       .from("examenes_medicos")
-      .select("*, trabajadores(nombre_completo, documento)")
-      .eq("trabajadores.empresa_id", empresaId)
+      .select("*, trabajadores(nombre, cedula, empresa_id)")
       .order("fecha_examen", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map((row: any) => ({
-      ...row,
-      trabajador_nombre: row.trabajadores?.nombre_completo,
-      trabajador_documento: row.trabajadores?.documento,
-    }));
+    return (data ?? [])
+      .filter((row: any) => row.trabajadores?.empresa_id === empresaId)
+      .map((row: any) => ({
+        ...row,
+        trabajador_nombre: row.trabajadores?.nombre,
+        trabajador_documento: row.trabajadores?.cedula,
+      }));
   },
 
   recomendaciones: async (examenId: string): Promise<RecomendacionMedica[]> => {

@@ -13,18 +13,20 @@ export type Empresa = {
   id: string;
   razon_social: string;
   nit: string;
-  ciiu: string;
-  ciiu_descripcion?: string;
+  ciiu_codigo: string;
   ciudad: string;
+  departamento?: string;
   direccion: string;
   num_trabajadores: number;
-  nivel_riesgo: string;
+  nivel_riesgo_arl: number;
   capitulo_0312: string;
   nombre_contacto: string;
   email_contacto: string;
-  telefono_contacto: string;
-  activa: boolean;
+  telefono?: string;
+  consultor_id?: string;
+  activo: boolean;
   created_at: string;
+  updated_at: string;
 };
 
 export type PilaStatus = "cargada" | "pendiente" | "vencida";
@@ -42,11 +44,12 @@ export type PilaRecord = {
 export type Trabajador = {
   id: string;
   empresa_id: string;
-  nombre_completo: string;
-  documento: string;
-  tipo_documento: string;
+  nombre: string;
+  cedula: string;
   cargo: string;
   area: string;
+  fecha_ingreso?: string;
+  fecha_egreso?: string;
   activo: boolean;
 };
 

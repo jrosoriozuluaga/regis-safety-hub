@@ -38,7 +38,7 @@ export function AdminDashboard() {
         <Kpi icon={Building2} label="Empresas clientes" value={String(empresas.length)} />
         <Kpi icon={Users} label="Trabajadores cubiertos" value={totalWorkers.toLocaleString("es-CO")} />
         <Kpi icon={TrendingUp} label="Cumplimiento promedio" value={avgCompliance ? `${avgCompliance}%` : "—"} accent="success" />
-        <Kpi icon={ShieldCheck} label="Nivel de riesgo" value={empresas.length ? empresas.map(e => e.nivel_riesgo).join(", ") : "—"} />
+        <Kpi icon={ShieldCheck} label="Nivel de riesgo" value={empresas.length ? empresas.map(e => `${e.nivel_riesgo_arl}`).join(", ") : "—"} />
       </div>
 
       <Card className="shadow-card">
@@ -61,10 +61,10 @@ export function AdminDashboard() {
               {empresas.map((e) => (
                 <TableRow key={e.id}>
                   <TableCell className="font-medium">{e.razon_social}</TableCell>
-                  <TableCell className="text-muted-foreground">{e.ciiu}</TableCell>
+                  <TableCell className="text-muted-foreground">{e.ciiu_codigo}</TableCell>
                   <TableCell className="text-muted-foreground">{e.ciudad}</TableCell>
                   <TableCell className="text-right tabular-nums">{e.num_trabajadores}</TableCell>
-                  <TableCell>{e.nivel_riesgo}</TableCell>
+                  <TableCell>{e.nivel_riesgo_arl}</TableCell>
                   <TableCell>{e.capitulo_0312}</TableCell>
                 </TableRow>
               ))}
