@@ -3,7 +3,7 @@ import { Building2, TrendingUp, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { empresasService } from "@/services";
+import { empresasService, cumplimientoService } from "@/services";
 import type { Empresa } from "@/types/domain";
 
 function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: "primary" | "success" }) {
@@ -24,13 +24,19 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
 
 export function AdminDashboard() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [avgCompliance, setAvgCompliance] = useState(0);
 
   useEffect(() => {
     empresasService.list().then(setEmpresas);
+    empresasService.compliance().then((rows) => {
+      if (rows.length > 0) {
+        const avg = Math.round(rows.reduce((s, r) => s + r.puntaje_total, 0) / rows.length);
+        setAvgCompliance(avg);
+      }
+    });
   }, []);
 
   const totalWorkers = empresas.reduce((s, e) => s + e.num_trabajadores, 0);
-  const avgCompliance = 0;
 
   return (
     <div className="space-y-6">
