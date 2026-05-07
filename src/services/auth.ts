@@ -45,7 +45,7 @@ export async function login(nit: string, password: string): Promise<UserProfile>
 
   const { data: profile } = await supabase
     .from("usuarios")
-    .select("id, nombre, email, rol, empresa_id, empresas_cliente(nit, razon_social)")
+    .select("id, nombre, email, rol, empresa_id, empresas_cliente!usuarios_empresa_id_fkey(nit, razon_social)")
     .eq("auth_user_id", authData.user.id)
     .single();
 
@@ -53,7 +53,7 @@ export async function login(nit: string, password: string): Promise<UserProfile>
     throw new Error("Perfil de usuario no encontrado");
   }
 
-  const empresaRaw = profile.empresas_cliente as unknown;
+  const empresaRaw = (profile as any).empresas_cliente as unknown;
   const empresa = (Array.isArray(empresaRaw) ? empresaRaw[0] : empresaRaw) as { nit: string; razon_social: string } | null;
   const userProfile: UserProfile = {
     id: profile.id,
