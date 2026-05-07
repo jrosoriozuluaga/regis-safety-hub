@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useViewMode } from "@/context/ViewModeContext";
 import { useAuth } from "@/context/AuthContext";
-import { mockNotifications } from "@/data/mockNotifications";
+import { notificationsService } from "@/services";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -21,7 +21,7 @@ export function AppHeader() {
   const { mode, setMode } = useViewMode();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const unread = mockNotifications.filter((n) => n.unread).length;
+  const unread = 0;
   const initials = (user?.companyName ?? "RG")
     .split(" ")
     .map((p) => p[0])
@@ -71,15 +71,9 @@ export function AppHeader() {
             Notificaciones <Badge variant="secondary">{unread} nuevas</Badge>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {mockNotifications.map((n) => (
-            <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 py-2.5">
-              <div className="flex w-full items-center justify-between">
-                <span className="font-medium text-sm">{n.title}</span>
-                <span className="text-[10px] text-muted-foreground">{n.time}</span>
-              </div>
-              <span className="text-xs text-muted-foreground">{n.description}</span>
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuItem className="flex flex-col items-start gap-0.5 py-2.5">
+            <span className="text-xs text-muted-foreground">No hay notificaciones nuevas</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

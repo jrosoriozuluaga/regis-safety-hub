@@ -3,8 +3,8 @@ import { Building2, TrendingUp, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { companiesService } from "@/services";
-import type { Company } from "@/types/domain";
+import { empresasService } from "@/services";
+import type { Empresa } from "@/types/domain";
 
 function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: "primary" | "success" }) {
   return (
@@ -23,48 +23,49 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
 }
 
 export function AdminDashboard() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [avg, setAvg] = useState(0);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
 
   useEffect(() => {
-    companiesService.list().then(setCompanies);
-    companiesService.averageCompliance().then(setAvg);
+    empresasService.list().then(setEmpresas);
   }, []);
 
-  const totalWorkers = companies.reduce((s, c) => s + c.workers, 0);
+  const totalWorkers = empresas.reduce((s, e) => s + e.num_trabajadores, 0);
+  const avgCompliance = 0;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={Building2} label="Empresas clientes" value={String(companies.length)} />
+        <Kpi icon={Building2} label="Empresas clientes" value={String(empresas.length)} />
         <Kpi icon={Users} label="Trabajadores cubiertos" value={totalWorkers.toLocaleString("es-CO")} />
-        <Kpi icon={TrendingUp} label="Cumplimiento promedio" value={`${avg}%`} accent="success" />
-        <Kpi icon={ShieldCheck} label="Auditorías al día" value="6 / 8" />
+        <Kpi icon={TrendingUp} label="Cumplimiento promedio" value={avgCompliance ? `${avgCompliance}%` : "—"} accent="success" />
+        <Kpi icon={ShieldCheck} label="Nivel de riesgo" value={empresas.length ? empresas.map(e => e.nivel_riesgo).join(", ") : "—"} />
       </div>
 
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg">Cumplimiento por empresa</CardTitle>
+          <CardTitle className="text-lg">Empresas clientes</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
-                <TableHead>Sector</TableHead>
+                <TableHead>CIIU</TableHead>
+                <TableHead>Ciudad</TableHead>
                 <TableHead className="text-right">Trabajadores</TableHead>
-                <TableHead className="w-[260px]">Cumplimiento</TableHead>
-                <TableHead className="text-right">%</TableHead>
+                <TableHead>Riesgo</TableHead>
+                <TableHead>Capítulo 0312</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {companies.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.industry}</TableCell>
-                  <TableCell className="text-right tabular-nums">{c.workers.toLocaleString("es-CO")}</TableCell>
-                  <TableCell><Progress value={c.compliance} className="h-2" /></TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">{c.compliance}%</TableCell>
+              {empresas.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell className="font-medium">{e.razon_social}</TableCell>
+                  <TableCell className="text-muted-foreground">{e.ciiu}</TableCell>
+                  <TableCell className="text-muted-foreground">{e.ciudad}</TableCell>
+                  <TableCell className="text-right tabular-nums">{e.num_trabajadores}</TableCell>
+                  <TableCell>{e.nivel_riesgo}</TableCell>
+                  <TableCell>{e.capitulo_0312}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

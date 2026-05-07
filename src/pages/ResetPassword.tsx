@@ -34,8 +34,7 @@ export default function ResetPassword() {
     }
     setErrors({});
     setLoading(true);
-    const token = new URLSearchParams(window.location.search).get("token") ?? "mock";
-    await resetPassword(token, parsed.data.password);
+    await resetPassword(parsed.data.password);
     setLoading(false);
     toast.success("Contraseña actualizada. Inicia sesión.");
     navigate("/login", { replace: true });

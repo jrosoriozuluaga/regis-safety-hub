@@ -15,9 +15,10 @@ export function ViewModeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [mode, setMode] = useState<ViewMode>("admin");
 
-  // Sync with the logged-in user's role on login.
   useEffect(() => {
-    if (user) setMode(user.role);
+    if (user) {
+      setMode(user.role === "cliente" ? "client" : "admin");
+    }
   }, [user]);
 
   return (

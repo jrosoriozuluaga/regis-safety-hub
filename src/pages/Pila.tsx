@@ -1,24 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { FileDropzone } from "@/components/common/FileDropzone";
-import { pilaService } from "@/services";
-import type { PilaRecord } from "@/types/domain";
 
 export default function Pila() {
-  const [rows, setRows] = useState<PilaRecord[]>([]);
   const [open, setOpen] = useState(false);
-  useEffect(() => { pilaService.list().then(setRows); }, []);
 
   const handleFiles = async (files: File[]) => {
-    await pilaService.upload(files[0]);
-    toast.success(`Archivo "${files[0].name}" cargado correctamente`);
+    toast.success(`Archivo "${files[0].name}" recibido — procesamiento pendiente (n8n)`);
     setOpen(false);
   };
 
@@ -43,27 +36,8 @@ export default function Pila() {
         }
       />
       <Card className="shadow-card">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Empresa</TableHead>
-                <TableHead>Mes</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Cargado el</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.companyName}</TableCell>
-                  <TableCell>{r.month}</TableCell>
-                  <TableCell><StatusBadge status={r.status} /></TableCell>
-                  <TableCell className="text-right text-muted-foreground">{r.uploadedAt ?? "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          Módulo PILA — se conectará al workflow de n8n para procesamiento automático.
         </CardContent>
       </Card>
     </div>

@@ -1,62 +1,174 @@
 import { useEffect, useState } from "react";
-import { Download, Search, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { matricesService } from "@/services";
-import type { RiskMatrix } from "@/types/domain";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { empresasService, matricesService, riesgosTipicosService } from "@/services";
+import type { Empresa, MatrizRiesgo, RiesgoMatriz } from "@/types/domain";
+import { useAuth } from "@/context/AuthContext";
 
 export default function RiskMatrices() {
-  const [ciiu, setCiiu] = useState("");
-  const [items, setItems] = useState<RiskMatrix[]>([]);
-  useEffect(() => { matricesService.list().then(setItems); }, []);
+  const { user } = useAuth();
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [selectedEmpresa, setSelectedEmpresa] = useState("");
+  const [matrices, setMatrices] = useState<MatrizRiesgo[]>([]);
+  const [selectedMatriz, setSelectedMatriz] = useState<string | null>(null);
+  const [riesgos, setRiesgos] = useState<RiesgoMatriz[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user?.role === "admin" || user?.role === "consultor") {
+      empresasService.list().then(setEmpresas);
+      matricesService.listAll().then(setMatrices);
+    } else if (user?.empresa_id) {
+      setSelectedEmpresa(user.empresa_id);
+      matricesService.listByEmpresa(user.empresa_id).then(setMatrices);
+    }
+  }, [user]);
+
+  const handleSelectMatriz = async (matrizId: string) => {
+    setSelectedMatriz(matrizId);
+    const data = await matricesService.getRiesgos(matrizId);
+    setRiesgos(data);
+  };
 
   const handleGenerate = async () => {
-    if (!ciiu.trim()) { toast.error("Ingresa un código CIIU"); return; }
-    await matricesService.generate(ciiu);
-    toast.success(`Matriz GTC 45 generada para CIIU ${ciiu}`);
-    setCiiu("");
+    if (!selectedEmpresa) { toast.error("Selecciona una empresa"); return; }
+    setLoading(true);
+    try {
+      const empresa = empresas.find(e => e.id === selectedEmpresa);
+      const newMatriz = await matricesService.create(selectedEmpresa, `Matriz GTC 45 — ${empresa?.razon_social || "empresa"}`);
+      toast.success("Matriz creada. Cargando riesgos típicos del CIIU...");
+
+      if (empresa) {
+        const tipicos = await riesgosTipicosService.getByCiiu(empresa.ciiu);
+        if (tipicos.length > 0) {
+          toast.success(`${tipicos.length} riesgos típicos encontrados para CIIU ${empresa.ciiu}`);
+        } else {
+          toast.info(`No hay riesgos pre-cargados para CIIU ${empresa.ciiu}`);
+        }
+      }
+
+      const updated = user?.role === "cliente"
+        ? await matricesService.listByEmpresa(selectedEmpresa)
+        : await matricesService.listAll();
+      setMatrices(updated);
+      setSelectedMatriz(newMatriz.id);
+      await handleSelectMatriz(newMatriz.id);
+    } catch (err: any) {
+      toast.error(err.message || "Error al crear la matriz");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const aceptabilidadColor: Record<string, string> = {
+    aceptable: "text-green-700 bg-green-50",
+    mejorable: "text-yellow-700 bg-yellow-50",
+    no_aceptable_si: "text-orange-700 bg-orange-50",
+    no_aceptable: "text-red-700 bg-red-50",
   };
 
   return (
     <div>
       <PageHeader
         title="Matrices de Riesgo GTC 45"
-        description="Genera matrices de identificación de peligros por código CIIU."
+        description="Identificación de peligros, evaluación y valoración de riesgos."
       />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-1">
           <CardHeader><CardTitle className="text-base">Generar nueva matriz</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ciiu">Código CIIU</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="ciiu" value={ciiu} onChange={(e) => setCiiu(e.target.value)} placeholder="ej. 4711" className="pl-9" />
+            {(user?.role === "admin" || user?.role === "consultor") && (
+              <div className="space-y-2">
+                <Label>Empresa</Label>
+                <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona empresa" /></SelectTrigger>
+                  <SelectContent>
+                    {empresas.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.razon_social} — CIIU {e.ciiu}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            )}
+            <Button onClick={handleGenerate} className="w-full gap-2" disabled={loading}>
+              <Wand2 className="h-4 w-4" /> {loading ? "Generando..." : "Generar Matriz"}
+            </Button>
+
+            <div className="space-y-2 pt-4">
+              <Label className="text-xs text-muted-foreground">Matrices existentes</Label>
+              {matrices.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleSelectMatriz(m.id)}
+                  className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted/40 transition-colors ${selectedMatriz === m.id ? "border-primary bg-primary/5" : ""}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{m.nombre}</div>
+                    <div className="text-xs text-muted-foreground">{m.empresa_razon_social} — {m.estado}</div>
+                  </div>
+                </button>
+              ))}
+              {matrices.length === 0 && (
+                <p className="text-sm text-muted-foreground">No hay matrices generadas aún.</p>
+              )}
             </div>
-            <Button onClick={handleGenerate} className="w-full gap-2"><Wand2 className="h-4 w-4" /> Generar Matriz</Button>
           </CardContent>
         </Card>
 
         <Card className="shadow-card lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Matrices generadas</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {items.map((m) => (
-              <div key={m.id} className="flex items-center gap-4 rounded-lg border p-3 hover:bg-muted/40 transition-colors">
-                <div className="h-10 w-10 rounded-md bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
-                  {m.ciiu}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{m.description}</div>
-                  <div className="text-xs text-muted-foreground">Generada el {m.generatedAt}</div>
-                </div>
-                <Button variant="ghost" size="icon" aria-label="Descargar"><Download className="h-4 w-4" /></Button>
+          <CardHeader><CardTitle className="text-base">Detalle de riesgos</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            {riesgos.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Peligro</TableHead>
+                      <TableHead>Fuente</TableHead>
+                      <TableHead className="text-center">ND</TableHead>
+                      <TableHead className="text-center">NE</TableHead>
+                      <TableHead className="text-center">NP</TableHead>
+                      <TableHead className="text-center">NC</TableHead>
+                      <TableHead className="text-center">NR</TableHead>
+                      <TableHead>Aceptabilidad</TableHead>
+                      <TableHead>Controles</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {riesgos.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell>
+                          <div className="text-sm font-medium">{r.descripcion_peligro}</div>
+                          <div className="text-xs text-muted-foreground">{r.categoria_peligro}</div>
+                        </TableCell>
+                        <TableCell className="text-sm">{r.fuente}</TableCell>
+                        <TableCell className="text-center tabular-nums">{r.nivel_deficiencia}</TableCell>
+                        <TableCell className="text-center tabular-nums">{r.nivel_exposicion}</TableCell>
+                        <TableCell className="text-center tabular-nums">{r.nivel_probabilidad}</TableCell>
+                        <TableCell className="text-center tabular-nums">{r.nivel_consecuencia}</TableCell>
+                        <TableCell className="text-center tabular-nums font-semibold">{r.nivel_riesgo}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${aceptabilidadColor[r.aceptabilidad] || ""}`}>
+                            {r.aceptabilidad.replace(/_/g, " ")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[200px] truncate">{r.medidas_control}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            ))}
+            ) : (
+              <div className="p-8 text-center text-muted-foreground">
+                {selectedMatriz ? "Esta matriz no tiene riesgos aún." : "Selecciona una matriz para ver sus riesgos."}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

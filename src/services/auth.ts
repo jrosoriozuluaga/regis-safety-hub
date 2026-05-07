@@ -1,28 +1,56 @@
-// Single seam for authentication. Swap localStorage logic with Supabase calls
-// (supabase.auth.signInWithPassword, resetPasswordForEmail, updateUser) without
-// touching pages or components.
-import { mockUsers } from "@/data/mockUsers";
+import { supabase } from "@/lib/supabase";
 import { UserProfile } from "@/types/domain";
 
 const SESSION_KEY = "regis.session";
 
-function delay<T>(value: T, ms = 400): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
 export async function login(nit: string, password: string): Promise<UserProfile> {
-  const match = mockUsers.find((u) => u.nit === nit.trim() && u.password === password);
-  if (!match) {
-    await delay(null, 300);
+  const { data: usuario, error: lookupErr } = await supabase
+    .from("usuarios")
+    .select("email")
+    .eq("nit_empresa", nit.trim())
+    .limit(1)
+    .single();
+
+  if (lookupErr || !usuario) {
     throw new Error("NIT o contraseña incorrectos");
   }
-  const { password: _pw, ...profile } = match;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(profile));
-  return delay(profile);
+
+  const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+    email: usuario.email,
+    password,
+  });
+
+  if (authErr || !authData.user) {
+    throw new Error("NIT o contraseña incorrectos");
+  }
+
+  const { data: profile } = await supabase
+    .from("usuarios")
+    .select("id, nombre, email, rol, empresa_id, nit_empresa, empresas_cliente(razon_social)")
+    .eq("auth_uid", authData.user.id)
+    .single();
+
+  if (!profile) {
+    throw new Error("Perfil de usuario no encontrado");
+  }
+
+  const empresa = profile.empresas_cliente as { razon_social: string } | null;
+  const userProfile: UserProfile = {
+    id: profile.id,
+    nit: profile.nit_empresa || nit,
+    companyName: empresa?.razon_social || profile.nombre,
+    contactEmail: profile.email,
+    role: profile.rol as UserProfile["role"],
+    empresa_id: profile.empresa_id,
+  };
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(userProfile));
+  return userProfile;
 }
 
 export function logout(): void {
   localStorage.removeItem(SESSION_KEY);
+  supabase.auth.signOut();
 }
 
 export function getCurrentUser(): UserProfile | null {
@@ -35,18 +63,22 @@ export function getCurrentUser(): UserProfile | null {
 }
 
 export async function requestReset(nit: string, email: string): Promise<void> {
-  // Mock: always succeed (do not reveal whether NIT/email match — security best practice).
-  await delay(null, 600);
-  const match = mockUsers.find(
-    (u) => u.nit === nit.trim() && u.contactEmail.toLowerCase() === email.trim().toLowerCase(),
-  );
-  if (match) {
-    // Would trigger a real email here.
-    console.info("[mock] reset link would be sent to", email);
+  const { data: usuario } = await supabase
+    .from("usuarios")
+    .select("email")
+    .eq("nit_empresa", nit.trim())
+    .eq("email", email.trim().toLowerCase())
+    .limit(1)
+    .single();
+
+  if (usuario) {
+    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
   }
 }
 
-export async function resetPassword(_token: string, _newPassword: string): Promise<void> {
-  await delay(null, 500);
-  // No-op in mock.
+export async function resetPassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(error.message);
 }
