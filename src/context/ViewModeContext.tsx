@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useAuth } from "@/context/AuthContext";
+import type { UserProfile } from "@/types/domain";
 
 export type ViewMode = "admin" | "client";
 
@@ -11,8 +11,7 @@ type Ctx = {
 
 const ViewModeContext = createContext<Ctx | null>(null);
 
-export function ViewModeProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+export function ViewModeProvider({ children, user }: { children: ReactNode; user: UserProfile | null }) {
   const [mode, setMode] = useState<ViewMode>("admin");
 
   useEffect(() => {
