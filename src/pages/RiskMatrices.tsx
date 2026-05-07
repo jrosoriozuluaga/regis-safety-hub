@@ -58,7 +58,7 @@ export default function RiskMatrices() {
     setLoading(true);
     try {
       const empresa = empresas.find(e => e.id === selectedEmpresa);
-      const newMatriz = await matricesService.create(selectedEmpresa, `Matriz GTC 45 — ${empresa?.razon_social || "empresa"}`);
+      const newMatriz = await matricesService.create(selectedEmpresa);
       toast.success("Matriz creada. Cargando riesgos típicos del CIIU...");
 
       if (empresa) {
@@ -137,7 +137,7 @@ export default function RiskMatrices() {
                   className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted/40 transition-colors ${selectedMatriz === m.id ? "border-primary bg-primary/5" : ""}`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{m.nombre}</div>
+                    <div className="text-sm font-medium truncate">Matriz GTC 45 v{m.version}</div>
                     <div className="text-xs text-muted-foreground">{m.empresa_razon_social} — {m.estado}</div>
                   </div>
                 </button>

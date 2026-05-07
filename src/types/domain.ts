@@ -81,10 +81,12 @@ export type MatrizRiesgo = {
   id: string;
   empresa_id: string;
   empresa_razon_social?: string;
-  nombre: string;
+  version: number;
   estado: "borrador" | "aprobada" | "vigente" | "archivada";
   fecha_elaboracion: string;
-  elaborado_por?: string;
+  fecha_actualizacion?: string;
+  documento_url?: string;
+  generada_por_ia?: boolean;
   created_at: string;
 };
 

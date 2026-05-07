@@ -82,10 +82,10 @@ export const matricesService = {
     return data ?? [];
   },
 
-  create: async (empresaId: string, nombre: string): Promise<MatrizRiesgo> => {
+  create: async (empresaId: string): Promise<MatrizRiesgo> => {
     const { data, error } = await supabase
       .from("matrices_riesgo")
-      .insert({ empresa_id: empresaId, nombre, estado: "borrador", fecha_elaboracion: new Date().toISOString().split("T")[0] })
+      .insert({ empresa_id: empresaId, version: 1, estado: "borrador", fecha_elaboracion: new Date().toISOString().split("T")[0] })
       .select()
       .single();
     if (error) throw error;
