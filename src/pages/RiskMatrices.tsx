@@ -65,6 +65,8 @@ export default function RiskMatrices() {
         const tipicos = await riesgosTipicosService.getByCiiu(empresa.ciiu_codigo);
         if (tipicos.length > 0) {
           const riesgosToInsert = tipicos.map((t: any) => ({
+            proceso: "Operación general",
+            actividad: "Actividades del CIIU " + empresa.ciiu_codigo,
             categoria_peligro: t.categoria_peligro || "General",
             descripcion_peligro: t.descripcion_peligro,
             fuente_peligro: t.fuente_peligro || "Actividad laboral",
