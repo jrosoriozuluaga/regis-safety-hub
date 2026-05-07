@@ -3,6 +3,7 @@ import { Building2, TrendingUp, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { empresasService, cumplimientoService } from "@/services";
 import type { Empresa } from "@/types/domain";
 
@@ -22,9 +23,16 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
   );
 }
 
+function getBarColor(score: number) {
+  if (score >= 86) return "#16a34a";
+  if (score >= 60) return "#eab308";
+  return "#dc2626";
+}
+
 export function AdminDashboard() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [avgCompliance, setAvgCompliance] = useState(0);
+  const [complianceData, setComplianceData] = useState<{ name: string; score: number }[]>([]);
 
   useEffect(() => {
     empresasService.list().then(setEmpresas);
@@ -32,6 +40,10 @@ export function AdminDashboard() {
       if (rows.length > 0) {
         const avg = Math.round(rows.reduce((s, r) => s + r.puntaje_total, 0) / rows.length);
         setAvgCompliance(avg);
+        setComplianceData(rows.map((r) => ({
+          name: r.empresa?.razon_social?.split(" ").slice(0, 2).join(" ") || "Empresa",
+          score: r.puntaje_total,
+        })));
       }
     });
   }, []);
@@ -46,6 +58,29 @@ export function AdminDashboard() {
         <Kpi icon={TrendingUp} label="Cumplimiento promedio" value={avgCompliance ? `${avgCompliance}%` : "—"} accent="success" />
         <Kpi icon={ShieldCheck} label="Nivel de riesgo" value={empresas.length ? empresas.map(e => `${e.nivel_riesgo_arl}`).join(", ") : "—"} />
       </div>
+
+      {complianceData.length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Cumplimiento por empresa</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={complianceData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
+                <Bar dataKey="score" radius={[6, 6, 0, 0]}>
+                  {complianceData.map((entry, i) => (
+                    <Cell key={i} fill={getBarColor(entry.score)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="shadow-card">
         <CardHeader>
