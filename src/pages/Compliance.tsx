@@ -200,6 +200,7 @@ export default function Compliance() {
           { label: "Planear", val: liveScores.planear, color: "text-blue-600" },
           { label: "Hacer", val: liveScores.hacer, color: "text-emerald-600" },
           { label: "Verificar", val: liveScores.verificar, color: "text-amber-600" },
+          { label: "Actuar", val: liveScores.actuar, color: "text-purple-600" },
         ] as const).map(({ label, val, color }) => (
           <Card key={label} className="shadow-card">
             <CardContent className="p-4 text-center">

@@ -3,7 +3,6 @@ import { Building2, TrendingUp, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { empresasService, cumplimientoService } from "@/services";
 import type { Empresa } from "@/types/domain";
 
@@ -60,16 +59,23 @@ export function AdminDashboard() {
             <CardTitle className="text-lg">Cumplimiento por empresa</CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ width: "100%", height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={complianceData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v: number) => `${v}%`} />
-                  <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
-                  <Bar dataKey="score" fill="#16a34a" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="flex items-end gap-6 justify-center" style={{ height: 240 }}>
+              {complianceData.map((d) => (
+                <div key={d.name} className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
+                  <span className="text-sm font-bold tabular-nums">{d.score}%</span>
+                  <div className="w-full bg-muted rounded-t-md" style={{ height: 200 }}>
+                    <div
+                      className="w-full rounded-t-md transition-all duration-700"
+                      style={{
+                        height: `${d.score}%`,
+                        marginTop: `${100 - d.score}%`,
+                        backgroundColor: d.score >= 80 ? "#16a34a" : d.score >= 60 ? "#ca8a04" : "#dc2626",
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground text-center leading-tight">{d.name}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
