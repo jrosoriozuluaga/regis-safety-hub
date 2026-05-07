@@ -67,7 +67,7 @@ export function AdminDashboard() {
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v: number) => `${v}%`} />
                   <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
-                  <Bar dataKey="score" fill="#16a34a" radius={[6, 6, 0, 0]} barSize={40} />
+                  <Bar dataKey="score" fill="#16a34a" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
