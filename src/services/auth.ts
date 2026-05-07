@@ -4,19 +4,38 @@ import { UserProfile } from "@/types/domain";
 const SESSION_KEY = "regis.session";
 
 export async function login(nit: string, password: string): Promise<UserProfile> {
-  const { data: usuario, error: lookupErr } = await supabase
-    .from("usuarios")
-    .select("email")
-    .eq("nit_empresa", nit.trim())
-    .limit(1)
-    .single();
+  const input = nit.trim();
+  let email: string;
+  let nitValue = input;
 
-  if (lookupErr || !usuario) {
-    throw new Error("NIT o contraseña incorrectos");
+  if (input.includes("@")) {
+    email = input;
+  } else {
+    const normalizedNit = input.replace(/[-.\s]/g, "");
+    const { data: empresa } = await supabase
+      .from("empresas_cliente")
+      .select("id, nit")
+      .or(`nit.ilike.%${normalizedNit}%`)
+      .limit(1)
+      .single();
+
+    if (!empresa) throw new Error("NIT no encontrado");
+
+    nitValue = empresa.nit;
+
+    const { data: usuario } = await supabase
+      .from("usuarios")
+      .select("email")
+      .eq("empresa_id", empresa.id)
+      .limit(1)
+      .single();
+
+    if (!usuario) throw new Error("NIT o contraseña incorrectos");
+    email = usuario.email;
   }
 
   const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-    email: usuario.email,
+    email,
     password,
   });
 
@@ -26,8 +45,8 @@ export async function login(nit: string, password: string): Promise<UserProfile>
 
   const { data: profile } = await supabase
     .from("usuarios")
-    .select("id, nombre, email, rol, empresa_id, nit_empresa, empresas_cliente(razon_social)")
-    .eq("auth_uid", authData.user.id)
+    .select("id, nombre, email, rol, empresa_id, empresas_cliente(nit, razon_social)")
+    .eq("auth_user_id", authData.user.id)
     .single();
 
   if (!profile) {
@@ -35,10 +54,10 @@ export async function login(nit: string, password: string): Promise<UserProfile>
   }
 
   const empresaRaw = profile.empresas_cliente as unknown;
-  const empresa = (Array.isArray(empresaRaw) ? empresaRaw[0] : empresaRaw) as { razon_social: string } | null;
+  const empresa = (Array.isArray(empresaRaw) ? empresaRaw[0] : empresaRaw) as { nit: string; razon_social: string } | null;
   const userProfile: UserProfile = {
     id: profile.id,
-    nit: profile.nit_empresa || nit,
+    nit: empresa?.nit || nitValue,
     companyName: empresa?.razon_social || profile.nombre,
     contactEmail: profile.email,
     role: profile.rol as UserProfile["role"],
@@ -63,20 +82,10 @@ export function getCurrentUser(): UserProfile | null {
   }
 }
 
-export async function requestReset(nit: string, email: string): Promise<void> {
-  const { data: usuario } = await supabase
-    .from("usuarios")
-    .select("email")
-    .eq("nit_empresa", nit.trim())
-    .eq("email", email.trim().toLowerCase())
-    .limit(1)
-    .single();
-
-  if (usuario) {
-    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-  }
+export async function requestReset(_nit: string, email: string): Promise<void> {
+  await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
 }
 
 export async function resetPassword(newPassword: string): Promise<void> {

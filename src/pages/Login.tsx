@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import logo from "@/assets/regis-logo.jpeg";
 
 const schema = z.object({
-  nit: z.string().trim().regex(/^\d{9,10}$/, "El NIT debe tener 9 o 10 dígitos"),
+  nit: z.string().trim().min(3, "Ingresa tu NIT o correo electrónico"),
   password: z.string().min(6, "Mínimo 6 caracteres"),
 });
 
@@ -91,18 +91,16 @@ export default function Login() {
 
           <form onSubmit={onSubmit} className="space-y-5" noValidate>
             <div className="space-y-2">
-              <Label htmlFor="nit">NIT de la empresa</Label>
+              <Label htmlFor="nit">NIT de la empresa o correo</Label>
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="nit"
-                  inputMode="numeric"
                   autoComplete="username"
-                  placeholder="900123456"
+                  placeholder="900123456 o correo@empresa.com"
                   className="pl-9"
                   value={nit}
-                  onChange={(e) => setNit(e.target.value.replace(/\D/g, ""))}
-                  maxLength={10}
+                  onChange={(e) => setNit(e.target.value)}
                   aria-invalid={!!errors.nit}
                 />
               </div>
@@ -146,8 +144,8 @@ export default function Login() {
 
           <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
             <p className="font-medium text-foreground mb-1">Cuentas de prueba</p>
-            <p>Admin · NIT 900123456 · contraseña <code>regis2025</code></p>
-            <p>Cliente · NIT 830111222 · contraseña <code>cliente2025</code></p>
+            <p>Admin · <code>admin@regiscolombia.com</code> · contraseña <code>regis2025</code></p>
+            <p>Cliente · NIT <code>900123456</code> · contraseña <code>cliente2025</code></p>
           </div>
         </div>
       </div>
