@@ -3,7 +3,7 @@ import { Building2, TrendingUp, Users, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { empresasService, cumplimientoService } from "@/services";
 import type { Empresa } from "@/types/domain";
 
@@ -23,11 +23,11 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
   );
 }
 
-function getBarColor(score: number) {
-  if (score >= 86) return "#16a34a";
-  if (score >= 60) return "#eab308";
-  return "#dc2626";
-}
+const CustomBar = (props: any) => {
+  const { x, y, width, height, score } = props;
+  const fill = score >= 86 ? "#16a34a" : score >= 60 ? "#eab308" : "#dc2626";
+  return <rect x={x} y={y} width={width} height={height} rx={6} ry={6} fill={fill} />;
+};
 
 export function AdminDashboard() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -71,11 +71,7 @@ export function AdminDashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                 <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
-                <Bar dataKey="score" radius={[6, 6, 0, 0]}>
-                  {complianceData.map((entry, i) => (
-                    <Cell key={i} fill={getBarColor(entry.score)} />
-                  ))}
-                </Bar>
+                <Bar dataKey="score" shape={<CustomBar />} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
