@@ -36,15 +36,15 @@ export const empresasService = {
     return data;
   },
 
-  compliance: async (): Promise<{ empresa: Empresa; porcentaje: number }[]> => {
+  compliance: async (): Promise<{ empresa: Empresa; puntaje_total: number }[]> => {
     const { data, error } = await supabase
       .from("cumplimiento_empresa")
-      .select("porcentaje, empresa_id, empresas_cliente(*)")
+      .select("puntaje_total, empresa_id, empresas_cliente(*)")
       .order("fecha_evaluacion", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((row: any) => ({
       empresa: row.empresas_cliente as Empresa,
-      porcentaje: row.porcentaje,
+      puntaje_total: row.puntaje_total,
     }));
   },
 };
@@ -77,7 +77,7 @@ export const matricesService = {
       .from("riesgos_matriz")
       .select("*")
       .eq("matriz_id", matrizId)
-      .order("nivel_riesgo", { ascending: false });
+      .order("nivel_deficiencia", { ascending: false });
     if (error) throw error;
     return data ?? [];
   },
@@ -91,14 +91,20 @@ export const matricesService = {
     if (error) throw error;
     return data;
   },
+
+  insertRiesgos: async (matrizId: string, riesgos: Partial<RiesgoMatriz>[]): Promise<void> => {
+    const rows = riesgos.map((r) => ({ ...r, matriz_id: matrizId }));
+    const { error } = await supabase.from("riesgos_matriz").insert(rows);
+    if (error) throw error;
+  },
 };
 
 export const riesgosTipicosService = {
   getByCiiu: async (ciiu: string) => {
     const { data, error } = await supabase
       .from("ciiu_riesgos_tipicos")
-      .select("*, categorias_peligro_gtc45(nombre, descripcion)")
-      .eq("codigo_ciiu", ciiu);
+      .select("*")
+      .eq("ciiu_codigo", ciiu);
     if (error) throw error;
     return data ?? [];
   },
@@ -207,16 +213,15 @@ export const examenesService = {
   listByEmpresa: async (empresaId: string): Promise<ExamenMedico[]> => {
     const { data, error } = await supabase
       .from("examenes_medicos")
-      .select("*, trabajadores(nombre, cedula, empresa_id)")
+      .select("*, trabajadores(nombre, cedula)")
+      .eq("empresa_id", empresaId)
       .order("fecha_examen", { ascending: false });
     if (error) throw error;
-    return (data ?? [])
-      .filter((row: any) => row.trabajadores?.empresa_id === empresaId)
-      .map((row: any) => ({
-        ...row,
-        trabajador_nombre: row.trabajadores?.nombre,
-        trabajador_documento: row.trabajadores?.cedula,
-      }));
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      trabajador_nombre: row.trabajadores?.nombre,
+      trabajador_documento: row.trabajadores?.cedula,
+    }));
   },
 
   recomendaciones: async (examenId: string): Promise<RecomendacionMedica[]> => {
@@ -246,7 +251,7 @@ export const cumplimientoService = {
     const { data, error } = await supabase
       .from("estandares_0312")
       .select("*")
-      .order("numeral");
+      .order("item_codigo");
     if (error) throw error;
     return data ?? [];
   },

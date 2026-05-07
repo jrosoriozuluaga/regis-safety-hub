@@ -1,4 +1,4 @@
-import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren } from "lucide-react";
+import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -21,6 +21,7 @@ const items = [
   { title: "Matrices de Riesgo", url: "/risk-matrices", icon: ShieldAlert },
   { title: "Comités", url: "/committees", icon: Users },
   { title: "Planes de Emergencia", url: "/emergency-plans", icon: Siren },
+  { title: "Cumplimiento 0312", url: "/compliance", icon: ClipboardCheck },
 ];
 
 export function AppSidebar() {

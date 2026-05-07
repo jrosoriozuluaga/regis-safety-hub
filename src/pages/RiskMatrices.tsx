@@ -11,6 +11,23 @@ import { empresasService, matricesService, riesgosTipicosService } from "@/servi
 import type { Empresa, MatrizRiesgo, RiesgoMatriz } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
 
+function calcNP(nd: number, ne: number) { return nd * ne; }
+function calcNR(nd: number, ne: number, nc: number) { return nd * ne * nc; }
+
+function interpretAceptabilidad(nr: number): string {
+  if (nr <= 20) return "aceptable";
+  if (nr <= 120) return "mejorable";
+  if (nr <= 500) return "no_aceptable_si";
+  return "no_aceptable";
+}
+
+const aceptabilidadColor: Record<string, string> = {
+  aceptable: "text-green-700 bg-green-50",
+  mejorable: "text-yellow-700 bg-yellow-50",
+  no_aceptable_si: "text-orange-700 bg-orange-50",
+  no_aceptable: "text-red-700 bg-red-50",
+};
+
 export default function RiskMatrices() {
   const { user } = useAuth();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -47,7 +64,25 @@ export default function RiskMatrices() {
       if (empresa) {
         const tipicos = await riesgosTipicosService.getByCiiu(empresa.ciiu_codigo);
         if (tipicos.length > 0) {
-          toast.success(`${tipicos.length} riesgos típicos encontrados para CIIU ${empresa.ciiu_codigo}`);
+          const riesgosToInsert = tipicos.map((t: any) => ({
+            categoria_peligro: t.categoria_peligro || "General",
+            descripcion_peligro: t.descripcion_peligro,
+            fuente_peligro: t.fuente_peligro || "Actividad laboral",
+            efectos_posibles: t.efectos_posibles || "Lesiones, enfermedades laborales",
+            nivel_deficiencia: t.nivel_deficiencia_sugerido ?? 6,
+            nivel_exposicion: t.nivel_exposicion_sugerido ?? 3,
+            nivel_consecuencia: t.nivel_consecuencia_sugerido ?? 25,
+            aceptabilidad: interpretAceptabilidad(
+              (t.nivel_deficiencia_sugerido ?? 6) * (t.nivel_exposicion_sugerido ?? 3) * (t.nivel_consecuencia_sugerido ?? 25)
+            ),
+            control_fuente: t.control_tipico_fuente,
+            control_medio: t.control_tipico_medio,
+            control_individuo: t.control_tipico_individuo,
+            medida_administrativa: t.medida_tipica_administrativa,
+            medida_epp: t.medida_tipica_epp,
+          }));
+          await matricesService.insertRiesgos(newMatriz.id, riesgosToInsert);
+          toast.success(`${tipicos.length} riesgos típicos insertados para CIIU ${empresa.ciiu_codigo}`);
         } else {
           toast.info(`No hay riesgos pre-cargados para CIIU ${empresa.ciiu_codigo}`);
         }
@@ -64,13 +99,6 @@ export default function RiskMatrices() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const aceptabilidadColor: Record<string, string> = {
-    aceptable: "text-green-700 bg-green-50",
-    mejorable: "text-yellow-700 bg-yellow-50",
-    no_aceptable_si: "text-orange-700 bg-orange-50",
-    no_aceptable: "text-red-700 bg-red-50",
   };
 
   return (
@@ -141,26 +169,32 @@ export default function RiskMatrices() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {riesgos.map((r) => (
-                      <TableRow key={r.id}>
-                        <TableCell>
-                          <div className="text-sm font-medium">{r.descripcion_peligro}</div>
-                          <div className="text-xs text-muted-foreground">{r.categoria_peligro}</div>
-                        </TableCell>
-                        <TableCell className="text-sm">{r.fuente}</TableCell>
-                        <TableCell className="text-center tabular-nums">{r.nivel_deficiencia}</TableCell>
-                        <TableCell className="text-center tabular-nums">{r.nivel_exposicion}</TableCell>
-                        <TableCell className="text-center tabular-nums">{r.nivel_probabilidad}</TableCell>
-                        <TableCell className="text-center tabular-nums">{r.nivel_consecuencia}</TableCell>
-                        <TableCell className="text-center tabular-nums font-semibold">{r.nivel_riesgo}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${aceptabilidadColor[r.aceptabilidad] || ""}`}>
-                            {r.aceptabilidad.replace(/_/g, " ")}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[200px] truncate">{r.medidas_control}</TableCell>
-                      </TableRow>
-                    ))}
+                    {riesgos.map((r) => {
+                      const np = calcNP(r.nivel_deficiencia, r.nivel_exposicion);
+                      const nr = calcNR(r.nivel_deficiencia, r.nivel_exposicion, r.nivel_consecuencia);
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell>
+                            <div className="text-sm font-medium">{r.descripcion_peligro}</div>
+                            <div className="text-xs text-muted-foreground">{r.categoria_peligro}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">{r.fuente_peligro}</TableCell>
+                          <TableCell className="text-center tabular-nums">{r.nivel_deficiencia}</TableCell>
+                          <TableCell className="text-center tabular-nums">{r.nivel_exposicion}</TableCell>
+                          <TableCell className="text-center tabular-nums">{np}</TableCell>
+                          <TableCell className="text-center tabular-nums">{r.nivel_consecuencia}</TableCell>
+                          <TableCell className="text-center tabular-nums font-semibold">{nr}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${aceptabilidadColor[r.aceptabilidad] || ""}`}>
+                              {r.aceptabilidad.replace(/_/g, " ")}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate">
+                            {[r.control_fuente, r.control_medio, r.control_individuo].filter(Boolean).join("; ") || "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

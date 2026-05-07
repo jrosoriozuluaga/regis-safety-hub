@@ -56,13 +56,15 @@ export type Trabajador = {
 export type ExamenMedico = {
   id: string;
   trabajador_id: string;
+  empresa_id: string;
   trabajador_nombre?: string;
   trabajador_documento?: string;
   tipo_examen: "ingreso" | "periodico" | "retiro" | "post_incapacidad";
   fecha_examen: string;
-  concepto: "apto" | "apto_con_restricciones" | "no_apto" | "aplazado";
+  concepto_aptitud: "apto" | "apto_con_restricciones" | "no_apto" | "aplazado";
+  medico_nombre?: string;
   archivo_url?: string;
-  datos_extraidos?: Record<string, unknown>;
+  procesado_por_ia?: boolean;
   created_at: string;
 };
 
@@ -89,39 +91,53 @@ export type MatrizRiesgo = {
 export type RiesgoMatriz = {
   id: string;
   matriz_id: string;
+  proceso?: string;
+  zona?: string;
+  actividad?: string;
+  tarea?: string;
+  es_rutinaria?: boolean;
   categoria_peligro: string;
   descripcion_peligro: string;
-  fuente: string;
+  fuente_peligro: string;
   efectos_posibles: string;
+  control_fuente?: string;
+  control_medio?: string;
+  control_individuo?: string;
   nivel_deficiencia: number;
   nivel_exposicion: number;
-  nivel_probabilidad: number;
-  interpretacion_np: string;
   nivel_consecuencia: number;
-  nivel_riesgo: number;
-  interpretacion_nr: string;
   aceptabilidad: "aceptable" | "mejorable" | "no_aceptable" | "no_aceptable_si";
-  medidas_control: string;
-  epp_requerido?: string;
+  medida_eliminacion?: string;
+  medida_sustitucion?: string;
+  medida_ingenieria?: string;
+  medida_administrativa?: string;
+  medida_epp?: string;
+  num_expuestos?: number;
+  created_at?: string;
 };
 
 export type Comite = {
   id: string;
   empresa_id: string;
-  tipo_comite: "copasst" | "convivencia";
-  periodo_inicio: string;
-  periodo_fin: string;
-  estado: "activo" | "inactivo";
+  tipo: "vigia" | "copasst" | "convivencia";
+  fecha_inicio_periodo: string;
+  fecha_fin_periodo: string;
+  activo: boolean;
+  created_at: string;
 };
 
 export type IntegranteComite = {
   id: string;
   comite_id: string;
-  usuario_id?: string;
   nombre: string;
+  cedula: string;
   cargo_empresa: string;
   rol_comite: string;
-  tipo_representacion: "empleador" | "trabajadores";
+  es_principal: boolean;
+  email?: string;
+  telefono?: string;
+  activo: boolean;
+  created_at: string;
 };
 
 export type ActaComite = {
@@ -154,11 +170,14 @@ export type PlanEmergencia = {
 export type CumplimientoEmpresa = {
   id: string;
   empresa_id: string;
-  fecha_evaluacion: string;
+  anio: number;
   puntaje_total: number;
-  puntaje_maximo: number;
-  porcentaje: number;
-  evaluado_por?: string;
+  puntaje_planear: number;
+  puntaje_hacer: number;
+  puntaje_verificar: number;
+  puntaje_actuar: number;
+  fecha_evaluacion: string;
+  updated_at: string;
 };
 
 export type ItemCumplimiento = {

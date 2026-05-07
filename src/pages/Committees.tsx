@@ -18,7 +18,7 @@ export default function Committees() {
   const [selectedEmpresa, setSelectedEmpresa] = useState("");
   const [comites, setComites] = useState<Comite[]>([]);
   const [selectedComite, setSelectedComite] = useState("");
-  const [tipoComite, setTipoComite] = useState<"copasst" | "convivencia">("copasst");
+  const [tipoComite, setTipoComite] = useState<"vigia" | "copasst" | "convivencia">("copasst");
   const [members, setMembers] = useState<IntegranteComite[]>([]);
   const [points, setPoints] = useState("");
   const [attendance, setAttendance] = useState<Record<string, boolean>>({});
@@ -37,7 +37,7 @@ export default function Committees() {
   }, [selectedEmpresa]);
 
   useEffect(() => {
-    const match = comites.find(c => c.tipo_comite === tipoComite && c.estado === "activo");
+    const match = comites.find(c => c.tipo === tipoComite && c.activo);
     if (match) {
       setSelectedComite(match.id);
       comitesService.integrantes(match.id).then((m) => {
@@ -91,9 +91,10 @@ export default function Committees() {
             )}
             <div className="space-y-2">
               <Label>Tipo de comité</Label>
-              <Select value={tipoComite} onValueChange={(v) => setTipoComite(v as "copasst" | "convivencia")}>
+              <Select value={tipoComite} onValueChange={(v) => setTipoComite(v as "vigia" | "copasst" | "convivencia")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="vigia">Vigía SST</SelectItem>
                   <SelectItem value="copasst">COPASST</SelectItem>
                   <SelectItem value="convivencia">Convivencia Laboral</SelectItem>
                 </SelectContent>
@@ -118,7 +119,7 @@ export default function Committees() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">{m.nombre}</div>
-                  <div className="text-xs text-muted-foreground">{m.rol_comite} — {m.tipo_representacion}</div>
+                  <div className="text-xs text-muted-foreground">{m.rol_comite}{m.es_principal ? " (Principal)" : " (Suplente)"}</div>
                 </div>
               </label>
             )) : (

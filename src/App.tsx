@@ -13,6 +13,7 @@ import MedicalExams from "./pages/MedicalExams";
 import RiskMatrices from "./pages/RiskMatrices";
 import Committees from "./pages/Committees";
 import EmergencyPlans from "./pages/EmergencyPlans";
+import Compliance from "./pages/Compliance";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -37,6 +38,7 @@ function AppInner() {
               <Route path="/risk-matrices" element={<RiskMatrices />} />
               <Route path="/committees" element={<Committees />} />
               <Route path="/emergency-plans" element={<EmergencyPlans />} />
+              <Route path="/compliance" element={<Compliance />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />
