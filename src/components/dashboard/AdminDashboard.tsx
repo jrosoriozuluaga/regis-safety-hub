@@ -60,15 +60,17 @@ export function AdminDashboard() {
             <CardTitle className="text-lg">Cumplimiento por empresa</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={complianceData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
-                <Bar dataKey="score" fill="#16a34a" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ width: "100%", height: 280 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={complianceData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickFormatter={(v: number) => `${v}%`} />
+                  <Tooltip formatter={(v: number) => [`${v}%`, "Cumplimiento"]} />
+                  <Bar dataKey="score" fill="#16a34a" radius={[6, 6, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       )}
