@@ -34,7 +34,8 @@ export async function login(nit: string, password: string): Promise<UserProfile>
     throw new Error("Perfil de usuario no encontrado");
   }
 
-  const empresa = profile.empresas_cliente as { razon_social: string } | null;
+  const empresaRaw = profile.empresas_cliente as unknown;
+  const empresa = (Array.isArray(empresaRaw) ? empresaRaw[0] : empresaRaw) as { razon_social: string } | null;
   const userProfile: UserProfile = {
     id: profile.id,
     nit: profile.nit_empresa || nit,
