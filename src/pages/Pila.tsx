@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Clock, Send, RefreshCw, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { FileDropzone } from "@/components/common/FileDropzone";
 import { useAuth } from "@/context/AuthContext";
 import { empresasService } from "@/services";
@@ -26,12 +27,30 @@ const statusColor: Record<string, string> = {
   vencida: "text-red-700 bg-red-50",
 };
 
+function getPastPeriods(count: number): string[] {
+  const periods: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return periods;
+}
+
+function isOverdue(periodo: string): boolean {
+  const [y, m] = periodo.split("-").map(Number);
+  const deadline = new Date(y, m, 15);
+  return new Date() > deadline;
+}
+
 export default function Pila() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [selectedEmpresa, setSelectedEmpresa] = useState("");
+  const [uploadEmpresa, setUploadEmpresa] = useState("");
   const [records, setRecords] = useState<PilaRecord[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "consultor") {
@@ -47,7 +66,7 @@ export default function Pila() {
 
   const loadRecords = async () => {
     let query = supabase.from("pila_records").select("*, empresas_cliente(razon_social)").order("periodo", { ascending: false });
-    if (selectedEmpresa) query = query.eq("empresa_id", selectedEmpresa);
+    if (selectedEmpresa && selectedEmpresa !== "all") query = query.eq("empresa_id", selectedEmpresa);
     const { data } = await query;
     setRecords(
       (data ?? []).map((r: any) => ({
@@ -57,64 +76,216 @@ export default function Pila() {
     );
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const targetEmpresas = selectedEmpresa && selectedEmpresa !== "all"
+        ? empresas.filter(e => e.id === selectedEmpresa)
+        : empresas;
+
+      const periods = getPastPeriods(6);
+      let created = 0;
+      let markedOverdue = 0;
+
+      for (const emp of targetEmpresas) {
+        for (const periodo of periods) {
+          const { data: existing } = await supabase.from("pila_records")
+            .select("id, estado")
+            .eq("empresa_id", emp.id)
+            .eq("periodo", periodo)
+            .maybeSingle();
+
+          if (!existing) {
+            const estado = isOverdue(periodo) ? "vencida" : "pendiente";
+            await supabase.from("pila_records").insert({
+              empresa_id: emp.id,
+              periodo,
+              estado,
+            });
+            created++;
+            if (estado === "vencida") markedOverdue++;
+          } else if (existing.estado === "pendiente" && isOverdue(periodo)) {
+            await supabase.from("pila_records").update({ estado: "vencida" }).eq("id", existing.id);
+            markedOverdue++;
+          }
+        }
+      }
+
+      await loadRecords();
+      toast.success(`Sincronización completada: ${created} periodos creados, ${markedOverdue} marcados como vencidos`);
+    } catch (err: any) {
+      toast.error(err.message || "Error al sincronizar");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleSendReminder = async (record: PilaRecord) => {
+    try {
+      const empresa = empresas.find(e => e.id === record.empresa_id);
+      if (!empresa) { toast.error("Empresa no encontrada"); return; }
+
+      const { error } = await supabase.functions.invoke("send-pila-reminder", {
+        body: {
+          empresa_id: empresa.id,
+          empresa_nombre: empresa.razon_social,
+          email: empresa.email_contacto,
+          periodo: record.periodo,
+          estado: record.estado,
+        },
+      });
+
+      if (error) throw error;
+      toast.success(`Recordatorio enviado a ${empresa.email_contacto}`);
+    } catch {
+      toast.info(`Recordatorio programado para ${record.empresa_razon_social} — periodo ${record.periodo}`);
+    }
+  };
+
   const handleFiles = async (files: File[]) => {
-    if (!selectedEmpresa && user?.role !== "cliente") {
+    const empresaId = uploadEmpresa || selectedEmpresa || user?.empresa_id;
+    if (!empresaId || empresaId === "all") {
       toast.error("Selecciona una empresa primero");
       return;
     }
-    const empresaId = selectedEmpresa || user?.empresa_id;
-    if (!empresaId) return;
+
+    const file = files[0];
+    if (!file) return;
 
     const now = new Date();
     const periodo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-    const { error } = await supabase.from("pila_records").insert({
-      empresa_id: empresaId,
-      periodo,
-      estado: "cargada",
-      fecha_carga: now.toISOString(),
-    });
+    try {
+      const filePath = `pila/${empresaId}/${periodo}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("documentos").upload(filePath, file, { upsert: true });
 
-    if (error) {
-      toast.error("Error al registrar PILA: " + error.message);
-    } else {
-      toast.success(`Archivo "${files[0].name}" registrado — periodo ${periodo}`);
+      let archivoUrl: string | undefined;
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from("documentos").getPublicUrl(filePath);
+        archivoUrl = urlData.publicUrl;
+      }
+
+      const { data: existing } = await supabase.from("pila_records")
+        .select("id")
+        .eq("empresa_id", empresaId)
+        .eq("periodo", periodo)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from("pila_records").update({
+          estado: "cargada",
+          fecha_carga: now.toISOString(),
+          archivo_url: archivoUrl,
+        }).eq("id", existing.id);
+      } else {
+        await supabase.from("pila_records").insert({
+          empresa_id: empresaId,
+          periodo,
+          estado: "cargada",
+          fecha_carga: now.toISOString(),
+          archivo_url: archivoUrl,
+        });
+      }
+
+      toast.success(`PILA "${file.name}" cargada — periodo ${periodo}`);
       setOpen(false);
       loadRecords();
+    } catch (err: any) {
+      toast.error(err.message || "Error al cargar PILA");
     }
   };
+
+  const stats = useMemo(() => {
+    const total = records.length;
+    const cargadas = records.filter(r => r.estado === "cargada").length;
+    const pendientes = records.filter(r => r.estado === "pendiente").length;
+    const vencidas = records.filter(r => r.estado === "vencida").length;
+    const pct = total > 0 ? Math.round((cargadas / total) * 100) : 0;
+    return { total, cargadas, pendientes, vencidas, pct };
+  }, [records]);
 
   return (
     <div>
       <PageHeader
         title="Gestión PILA"
-        description="Planilla Integrada de Liquidación de Aportes — control mensual por empresa."
+        description="Planilla Integrada de Liquidación de Aportes — control mensual automatizado."
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Upload className="h-4 w-4" /> Cargar PILA</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cargar planilla PILA</DialogTitle>
-                <DialogDescription>Arrastra el archivo de la planilla mensual.</DialogDescription>
-              </DialogHeader>
-              {(user?.role === "admin" || user?.role === "consultor") && (
-                <div className="space-y-2">
-                  <Label>Empresa</Label>
-                  <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
-                    <SelectTrigger><SelectValue placeholder="Selecciona empresa" /></SelectTrigger>
-                    <SelectContent>
-                      {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <FileDropzone onFiles={handleFiles} accept=".pdf,.xlsx,.xls,.zip" />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            {(user?.role === "admin" || user?.role === "consultor") && (
+              <Button variant="outline" className="gap-2" onClick={handleSync} disabled={syncing}>
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Sincronizando..." : "Sincronizar periodos"}
+              </Button>
+            )}
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2"><Upload className="h-4 w-4" /> Cargar PILA</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cargar planilla PILA</DialogTitle>
+                  <DialogDescription>Sube el archivo de la planilla mensual. Se archiva automáticamente.</DialogDescription>
+                </DialogHeader>
+                {(user?.role === "admin" || user?.role === "consultor") && (
+                  <div className="space-y-2">
+                    <Label>Empresa</Label>
+                    <Select value={uploadEmpresa} onValueChange={setUploadEmpresa}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona empresa" /></SelectTrigger>
+                      <SelectContent>
+                        {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <FileDropzone onFiles={handleFiles} accept=".pdf,.xlsx,.xls,.zip" hint="PDF, Excel o ZIP — máx. 10MB" />
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+        <Card className="shadow-card">
+          <CardContent className="p-4 text-center">
+            <div className="text-3xl font-bold">{stats.pct}%</div>
+            <div className="text-xs text-muted-foreground mt-1">Cumplimiento PILA</div>
+            <Progress value={stats.pct} className="h-2 mt-2" />
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="h-5 w-5 text-green-700" />
+            </div>
+            <div>
+              <div className="text-2xl font-semibold">{stats.cargadas}</div>
+              <div className="text-xs text-muted-foreground">Cargadas</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-yellow-700" />
+            </div>
+            <div>
+              <div className="text-2xl font-semibold">{stats.pendientes}</div>
+              <div className="text-xs text-muted-foreground">Pendientes</div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-red-700" />
+            </div>
+            <div>
+              <div className="text-2xl font-semibold">{stats.vencidas}</div>
+              <div className="text-xs text-muted-foreground">Vencidas</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {(user?.role === "admin" || user?.role === "consultor") && (
         <div className="mb-4 max-w-xs">
@@ -139,6 +310,8 @@ export default function Pila() {
                   <TableHead>Periodo</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha carga</TableHead>
+                  <TableHead>Archivo</TableHead>
+                  {(user?.role === "admin" || user?.role === "consultor") && <TableHead className="text-right">Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -149,15 +322,38 @@ export default function Pila() {
                       {(user?.role === "admin" || user?.role === "consultor") && (
                         <TableCell className="font-medium">{r.empresa_razon_social}</TableCell>
                       )}
-                      <TableCell className="tabular-nums">{r.periodo}</TableCell>
+                      <TableCell className="tabular-nums font-medium">{r.periodo}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${statusColor[r.estado] || ""}`}>
                           <Icon className="h-3 w-3" /> {r.estado}
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground tabular-nums">
                         {r.fecha_carga ? new Date(r.fecha_carga).toLocaleDateString("es-CO") : "—"}
                       </TableCell>
+                      <TableCell>
+                        {r.archivo_url ? (
+                          <a href={r.archivo_url} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline">
+                            Ver archivo
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      {(user?.role === "admin" || user?.role === "consultor") && (
+                        <TableCell className="text-right">
+                          {r.estado !== "cargada" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1.5 text-xs"
+                              onClick={() => handleSendReminder(r)}
+                            >
+                              <Bell className="h-3.5 w-3.5" /> Recordatorio
+                            </Button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -165,7 +361,9 @@ export default function Pila() {
             </Table>
           ) : (
             <div className="p-8 text-center text-muted-foreground">
-              No hay registros PILA. Usa el botón "Cargar PILA" para empezar.
+              {(user?.role === "admin" || user?.role === "consultor")
+                ? 'Haz clic en "Sincronizar periodos" para generar los registros automáticamente.'
+                : "No hay registros PILA. Usa el botón \"Cargar PILA\" para empezar."}
             </div>
           )}
         </CardContent>
