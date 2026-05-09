@@ -101,6 +101,7 @@ export default function Pila() {
               empresa_id: emp.id,
               periodo,
               estado,
+              fecha_solicitud: new Date().toISOString(),
             });
             created++;
             if (estado === "vencida") markedOverdue++;
@@ -125,18 +126,52 @@ export default function Pila() {
       const empresa = empresas.find(e => e.id === record.empresa_id);
       if (!empresa) { toast.error("Empresa no encontrada"); return; }
 
-      const { error } = await supabase.functions.invoke("send-pila-reminder", {
-        body: {
-          empresa_id: empresa.id,
-          empresa_nombre: empresa.razon_social,
-          email: empresa.email_contacto,
-          periodo: record.periodo,
-          estado: record.estado,
-        },
-      });
+      // Try n8n webhook first, fall back to Edge Function
+      const { data: config } = await supabase
+        .from("configuracion_sistema")
+        .select("valor")
+        .eq("clave", "n8n_webhook_base_url")
+        .maybeSingle();
 
-      if (error) throw error;
+      const webhookUrl = config?.valor;
+
+      if (webhookUrl) {
+        const response = await fetch(`${webhookUrl}/pila-reminder`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            empresa_id: empresa.id,
+            empresa_nombre: empresa.razon_social,
+            empresa_nit: empresa.nit,
+            email: empresa.email_contacto,
+            nombre_contacto: empresa.nombre_contacto,
+            periodo: record.periodo,
+            estado: record.estado,
+            intento: (record.intentos_solicitud || 0) + 1,
+          }),
+        });
+        if (!response.ok) throw new Error("Error en webhook n8n");
+      } else {
+        const { error } = await supabase.functions.invoke("send-pila-reminder", {
+          body: {
+            empresa_id: empresa.id,
+            empresa_nombre: empresa.razon_social,
+            email: empresa.email_contacto,
+            periodo: record.periodo,
+            estado: record.estado,
+          },
+        });
+        if (error) throw error;
+      }
+
+      // Track reminder attempt in DB
+      await supabase.from("pila_records").update({
+        intentos_solicitud: (record.intentos_solicitud || 0) + 1,
+        proximo_recordatorio: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      }).eq("id", record.id);
+
       toast.success(`Recordatorio enviado a ${empresa.email_contacto}`);
+      loadRecords();
     } catch {
       toast.info(`Recordatorio programado para ${record.empresa_razon_social} — periodo ${record.periodo}`);
     }
@@ -332,13 +367,20 @@ export default function Pila() {
                         {r.fecha_carga ? new Date(r.fecha_carga).toLocaleDateString("es-CO") : "—"}
                       </TableCell>
                       <TableCell>
-                        {r.archivo_url ? (
-                          <a href={r.archivo_url} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline">
-                            Ver archivo
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {r.archivo_url ? (
+                            <a href={r.archivo_url} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline">
+                              Ver archivo
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                          {r.drive_file_id && (
+                            <a href={`https://drive.google.com/file/d/${r.drive_file_id}/view`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">
+                              Google Drive
+                            </a>
+                          )}
+                        </div>
                       </TableCell>
                       {(user?.role === "admin" || user?.role === "consultor") && (
                         <TableCell className="text-right">
@@ -349,7 +391,8 @@ export default function Pila() {
                               className="gap-1.5 text-xs"
                               onClick={() => handleSendReminder(r)}
                             >
-                              <Bell className="h-3.5 w-3.5" /> Recordatorio
+                              <Bell className="h-3.5 w-3.5" />
+                              {r.intentos_solicitud ? `Recordatorio (${r.intentos_solicitud})` : "Recordatorio"}
                             </Button>
                           )}
                         </TableCell>

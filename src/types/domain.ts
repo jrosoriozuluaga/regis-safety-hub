@@ -37,7 +37,11 @@ export type PilaRecord = {
   periodo: string;
   estado: PilaStatus;
   archivo_url?: string;
+  drive_file_id?: string;
   fecha_carga?: string;
+  fecha_solicitud?: string;
+  intentos_solicitud?: number;
+  proximo_recordatorio?: string;
   created_at: string;
 };
 
