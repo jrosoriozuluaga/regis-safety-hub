@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Sparkles, Loader2 } from "lucide-react";
+import { FileText, Sparkles, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,10 +157,33 @@ export default function Committees() {
 
       {generatedActa && (
         <Card className="shadow-card mt-6">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-success" /> Acta generada por IA
+              <Sparkles className="h-4 w-4 text-success" /> Acta generada
             </CardTitle>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+              const printW = window.open("", "_blank");
+              if (!printW) { toast.error("Habilita ventanas emergentes"); return; }
+              const empresa = empresas.find(e => e.id === selectedEmpresa);
+              // Convert markdown-like content to simple HTML
+              const html = generatedActa
+                .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+                .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+                .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+                .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                .replace(/^- (.+)$/gm, "<li>$1</li>")
+                .replace(/^---$/gm, "<hr>")
+                .replace(/_________________________/g, "<div style='border-bottom:1px solid #333;width:250px;margin-top:40px'></div>")
+                .replace(/\n\n/g, "</p><p>")
+                .replace(/\n/g, "<br>");
+              printW.document.write(`<!DOCTYPE html><html><head><title>Acta — ${empresa?.razon_social || ""}</title>
+<style>body{font-family:Georgia,serif;margin:40px 60px;font-size:12px;line-height:1.6;color:#1a1a1a}h1{font-size:18px;text-align:center}h2{font-size:14px;border-bottom:2px solid #333;padding-bottom:4px;margin-top:24px}h3{font-size:13px;margin-top:16px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:11px}th{background:#f3f4f6}hr{border:none;border-top:1px solid #ddd;margin:16px 0}li{margin-left:20px}@media print{@page{margin:20mm}}</style>
+</head><body><p>${html}</p></body></html>`);
+              printW.document.close();
+              setTimeout(() => printW.print(), 500);
+            }}>
+              <Printer className="h-4 w-4" /> Exportar PDF
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-xs bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">

@@ -52,10 +52,10 @@ export default function Compliance() {
       cumplimientoService.getLatest(selectedEmpresa).then((c) => {
         setCumplimiento(c);
         if (c) {
-          supabase.from("items_cumplimiento").select("estandar_id, cumple")
+          supabase.from("items_cumplimiento").select("estandar_id, calificacion")
             .eq("cumplimiento_id", c.id).then(({ data }) => {
               if (data) {
-                setCheckedItems(Object.fromEntries(data.map((d: any) => [d.estandar_id, d.cumple])));
+                setCheckedItems(Object.fromEntries(data.map((d: any) => [d.estandar_id, d.calificacion === "cumple"])));
               }
             });
         } else {
@@ -137,10 +137,11 @@ export default function Compliance() {
       }
 
       await supabase.from("items_cumplimiento").delete().eq("cumplimiento_id", cumplimientoId);
-      const items = Object.entries(checkedItems).map(([estandar_id, cumple]) => ({
+      const items = filteredEstandares.map((e) => ({
         cumplimiento_id: cumplimientoId,
-        estandar_id,
-        cumple,
+        estandar_id: e.id,
+        calificacion: checkedItems[e.id] ? "cumple" : "no_cumple",
+        puntaje_obtenido: checkedItems[e.id] ? e.peso_porcentual : 0,
       }));
       if (items.length > 0) {
         await supabase.from("items_cumplimiento").insert(items);

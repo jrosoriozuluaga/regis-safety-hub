@@ -63,9 +63,9 @@ export type ExamenMedico = {
   empresa_id: string;
   trabajador_nombre?: string;
   trabajador_documento?: string;
-  tipo_examen: "ingreso" | "periodico" | "retiro" | "post_incapacidad";
+  tipo_examen: "ingreso" | "periodico" | "egreso";
   fecha_examen: string;
-  concepto_aptitud: "apto" | "apto_con_restricciones" | "no_apto" | "aplazado";
+  concepto_aptitud: "apto" | "apto_con_restricciones" | "no_apto";
   medico_nombre?: string;
   archivo_url?: string;
   procesado_por_ia?: boolean;
@@ -78,7 +78,7 @@ export type RecomendacionMedica = {
   tipo: "recomendacion" | "restriccion";
   descripcion: string;
   fecha_vencimiento?: string;
-  estado: "activa" | "cumplida" | "vencida";
+  estado: "pendiente" | "en_cumplimiento" | "cumplida";
 };
 
 export type MatrizRiesgo = {
@@ -169,7 +169,7 @@ export type PlanEmergencia = {
   transcripcion?: string;
   analisis_json?: Record<string, unknown>;
   documento_url?: string;
-  estado: "borrador" | "en_revision" | "aprobado";
+  estado: "borrador" | "generado" | "en_revision" | "revisado" | "aprobado";
   created_at: string;
 };
 

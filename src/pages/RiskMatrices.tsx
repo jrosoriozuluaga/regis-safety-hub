@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Wand2 } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Wand2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,7 @@ export default function RiskMatrices() {
   const [selectedMatriz, setSelectedMatriz] = useState<string | null>(null);
   const [riesgos, setRiesgos] = useState<RiesgoMatriz[]>([]);
   const [loading, setLoading] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "consultor") {
@@ -103,6 +104,76 @@ export default function RiskMatrices() {
     }
   };
 
+  const handlePrint = () => {
+    const matrizInfo = matrices.find(m => m.id === selectedMatriz);
+    const empresaInfo = empresas.find(e => e.id === selectedEmpresa) || empresas.find(e => e.razon_social === matrizInfo?.empresa_razon_social);
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) { toast.error("Habilita ventanas emergentes para exportar"); return; }
+
+    const rows = riesgos.map(r => {
+      const np = calcNP(r.nivel_deficiencia, r.nivel_exposicion);
+      const nr = calcNR(r.nivel_deficiencia, r.nivel_exposicion, r.nivel_consecuencia);
+      const acColor = r.aceptabilidad === "aceptable" ? "#16a34a"
+        : r.aceptabilidad === "mejorable" ? "#ca8a04"
+        : r.aceptabilidad === "no_aceptable_si" ? "#ea580c" : "#dc2626";
+      return `<tr>
+        <td>${r.categoria_peligro}</td>
+        <td><strong>${r.descripcion_peligro}</strong></td>
+        <td>${r.fuente_peligro}</td>
+        <td>${r.efectos_posibles || "—"}</td>
+        <td class="center">${r.nivel_deficiencia}</td>
+        <td class="center">${r.nivel_exposicion}</td>
+        <td class="center">${np}</td>
+        <td class="center">${r.nivel_consecuencia}</td>
+        <td class="center bold">${nr}</td>
+        <td style="color:${acColor};font-weight:600">${r.aceptabilidad.replace(/_/g, " ")}</td>
+        <td>${[r.control_fuente, r.control_medio, r.control_individuo].filter(Boolean).join("; ") || "—"}</td>
+        <td>${[r.medida_administrativa, r.medida_epp].filter(Boolean).join("; ") || "—"}</td>
+      </tr>`;
+    }).join("");
+
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Matriz GTC 45 — ${empresaInfo?.razon_social || ""}</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; font-size: 10px; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  h2 { font-size: 13px; color: #555; margin-top: 0; }
+  .meta { display: flex; gap: 24px; margin-bottom: 12px; font-size: 11px; color: #333; }
+  .meta span { background: #f3f4f6; padding: 3px 8px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: #1e293b; color: white; padding: 6px 4px; text-align: left; font-size: 9px; text-transform: uppercase; }
+  td { padding: 5px 4px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  tr:nth-child(even) { background: #f9fafb; }
+  .center { text-align: center; }
+  .bold { font-weight: 700; }
+  .footer { margin-top: 16px; font-size: 9px; color: #888; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
+  @media print { body { margin: 10px; } @page { size: landscape; margin: 10mm; } }
+</style></head><body>
+<h1>Matriz de Identificación de Peligros, Evaluación y Valoración de Riesgos</h1>
+<h2>Metodología GTC 45 — ${empresaInfo?.razon_social || matrizInfo?.empresa_razon_social || ""}</h2>
+<div class="meta">
+  <span><strong>NIT:</strong> ${empresaInfo?.nit || "—"}</span>
+  <span><strong>CIIU:</strong> ${empresaInfo?.ciiu_codigo || "—"}</span>
+  <span><strong>Versión:</strong> ${matrizInfo?.version || 1}</span>
+  <span><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-CO")}</span>
+  <span><strong>Estado:</strong> ${matrizInfo?.estado || "borrador"}</span>
+</div>
+<table>
+  <thead><tr>
+    <th>Categoría</th><th>Peligro</th><th>Fuente</th><th>Efectos</th>
+    <th>ND</th><th>NE</th><th>NP</th><th>NC</th><th>NR</th>
+    <th>Aceptabilidad</th><th>Controles existentes</th><th>Medidas</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="footer">
+  Generado por Regis SG-SST — Resolución 0312 de 2019 — ${new Date().toLocaleString("es-CO")}
+</div>
+</body></html>`);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+  };
+
   return (
     <div>
       <PageHeader
@@ -151,8 +222,15 @@ export default function RiskMatrices() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-card lg:col-span-2">
-          <CardHeader><CardTitle className="text-base">Detalle de riesgos</CardTitle></CardHeader>
+        <Card className="shadow-card lg:col-span-2" ref={printRef}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Detalle de riesgos</CardTitle>
+            {riesgos.length > 0 && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={handlePrint}>
+                <Printer className="h-4 w-4" /> Exportar PDF
+              </Button>
+            )}
+          </CardHeader>
           <CardContent className="p-0">
             {riesgos.length > 0 ? (
               <div className="overflow-x-auto">
