@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { empresasService, cumplimientoService } from "@/services";
+import { OnboardingChecklist } from "@/components/common/OnboardingChecklist";
 import type { Empresa } from "@/types/domain";
 
 function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: "primary" | "success" }) {
@@ -79,6 +80,17 @@ export function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {empresas.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Progreso de Onboarding</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {empresas.map((e) => (
+              <OnboardingChecklist key={e.id} empresaId={e.id} empresaNombre={e.razon_social} compact />
+            ))}
+          </div>
+        </div>
       )}
 
       <Card className="shadow-card">

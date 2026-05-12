@@ -158,6 +158,8 @@ export type ActaComite = {
   hay_quorum: boolean;
   estado: "borrador" | "aprobada" | "firmada";
   contenido_generado?: string;
+  generada_por_ia?: boolean;
+  documento_url?: string;
   created_at: string;
 };
 

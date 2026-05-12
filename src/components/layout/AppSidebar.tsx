@@ -1,5 +1,6 @@
-import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck } from "lucide-react";
+import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck, Briefcase, UserCog, HardHat, Settings2, History, CalendarDays, FileBarChart, Mail } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -22,12 +23,25 @@ const items = [
   { title: "Comités", url: "/committees", icon: Users },
   { title: "Planes de Emergencia", url: "/emergency-plans", icon: Siren },
   { title: "Cumplimiento 0312", url: "/compliance", icon: ClipboardCheck },
+  { title: "Calendario", url: "/calendario", icon: CalendarDays },
+  { title: "Informe", url: "/informe", icon: FileBarChart },
+];
+
+const adminItems = [
+  { title: "Empresas", url: "/empresas", icon: Briefcase },
+  { title: "Usuarios", url: "/usuarios", icon: UserCog },
+  { title: "Trabajadores", url: "/trabajadores", icon: HardHat },
+  { title: "Configuración", url: "/configuracion", icon: Settings2 },
+  { title: "Actividad", url: "/actividad", icon: History },
+  { title: "Plantillas Correo", url: "/plantillas-correo", icon: Mail },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "consultor";
   const isActive = (path: string) => (path === "/" ? pathname === "/" : pathname.startsWith(path));
 
   return (
@@ -64,6 +78,26 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administración</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                      <NavLink to={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );

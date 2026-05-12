@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
-import { FileText, Sparkles, Loader2, Printer } from "lucide-react";
+import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { empresasService, comitesService } from "@/services";
 import { supabase } from "@/lib/supabase";
-import type { Empresa, Comite, IntegranteComite } from "@/types/domain";
+import type { Empresa, Comite, IntegranteComite, ActaComite } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
 export default function Committees() {
   const { user } = useAuth();
@@ -25,6 +28,18 @@ export default function Committees() {
   const [attendance, setAttendance] = useState<Record<string, boolean>>({});
   const [generating, setGenerating] = useState(false);
   const [generatedActa, setGeneratedActa] = useState("");
+  const [actas, setActas] = useState<ActaComite[]>([]);
+  // Meeting fields
+  const [lugar, setLugar] = useState("Oficinas de la empresa");
+  const [tipoReunion, setTipoReunion] = useState<"ordinaria" | "extraordinaria">("ordinaria");
+  const [horaInicio, setHoraInicio] = useState(() => new Date().toTimeString().slice(0, 5));
+  const [horaFin, setHoraFin] = useState(() => new Date(Date.now() + 3600000).toTimeString().slice(0, 5));
+
+  // Quorum calculation
+  const presentCount = Object.values(attendance).filter(Boolean).length;
+  const totalMembers = members.length;
+  const quorumRequired = Math.floor(totalMembers / 2) + 1;
+  const hasQuorum = presentCount >= quorumRequired;
 
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "consultor") {
@@ -47,22 +62,30 @@ export default function Committees() {
         setMembers(m);
         setAttendance(Object.fromEntries(m.map((x) => [x.id, true])));
       });
+      comitesService.actas(match.id).then(setActas);
     } else {
       setSelectedComite("");
       setMembers([]);
       setAttendance({});
+      setActas([]);
     }
   }, [comites, tipoComite]);
 
   const handleGenerate = async () => {
-    if (!selectedComite) { toast.error("No hay comité activo para esta empresa"); return; }
+    if (!selectedComite) { toast.error("No hay comite activo para esta empresa"); return; }
     if (!points.trim()) { toast.error("Ingresa los puntos a tratar"); return; }
+
+    // Quorum validation — required by Regis
+    if (!hasQuorum) {
+      toast.error(`Sin quorum: se requieren ${quorumRequired} integrantes (hay ${presentCount} presentes). La reunion debe reprogramarse.`);
+      return;
+    }
 
     setGenerating(true);
     setGeneratedActa("");
     try {
       const asistentesIds = Object.entries(attendance).filter(([, v]) => v).map(([k]) => k);
-      const puntosArray = points.split("\n").filter(l => l.trim()).map((l, i) => ({
+      const puntosArray = points.split("\n").filter(l => l.trim()).map((l) => ({
         titulo: l.trim(),
         desarrollo: "",
         compromisos: [],
@@ -71,10 +94,10 @@ export default function Committees() {
       const { data, error } = await supabase.functions.invoke("generate-acta", {
         body: {
           comite_id: selectedComite,
-          tipo_reunion: "ordinaria",
-          lugar: "Oficinas de la empresa",
-          hora_inicio: new Date().toTimeString().slice(0, 5),
-          hora_fin: new Date(Date.now() + 3600000).toTimeString().slice(0, 5),
+          tipo_reunion: tipoReunion,
+          lugar,
+          hora_inicio: horaInicio,
+          hora_fin: horaFin,
           puntos_json: puntosArray,
           asistentes_ids: asistentesIds,
         },
@@ -82,8 +105,36 @@ export default function Committees() {
 
       if (error) throw error;
 
-      setGeneratedActa(data.contenido);
-      toast.success("Acta generada con IA exitosamente");
+      const contenido = data.contenido;
+      setGeneratedActa(contenido);
+
+      // Persist acta to database
+      const nextNumero = actas.length > 0 ? Math.max(...actas.map(a => a.numero_acta || 0)) + 1 : 1;
+      await comitesService.createActa({
+        comite_id: selectedComite,
+        numero_acta: nextNumero,
+        fecha_reunion: new Date().toISOString(),
+        tipo_reunion: tipoReunion,
+        lugar,
+        hora_inicio: horaInicio,
+        hora_fin: horaFin,
+        contenido_generado: contenido,
+        hay_quorum: true,
+        generada_por_ia: true,
+        estado: "borrador",
+      });
+
+      // Save attendance records
+      const attendanceRecords = asistentesIds.map(integranteId => ({
+        acta_id: undefined as any, // Will be set below
+        integrante_id: integranteId,
+        presente: true,
+      }));
+      // Reload actas to get the new one
+      const updatedActas = await comitesService.actas(selectedComite);
+      setActas(updatedActas);
+
+      toast.success("Acta generada y guardada exitosamente");
       setPoints("");
     } catch (err: any) {
       toast.error(err.message || "Error al generar el acta con IA");
@@ -93,8 +144,8 @@ export default function Committees() {
   };
 
   return (
-    <div>
-      <PageHeader title="Actas de Comité" description="Genera actas COPASST y Convivencia Laboral con IA, listas para firma." />
+    <div className="space-y-6">
+      <PageHeader title="Actas de Comite" description="Genera actas COPASST y Convivencia Laboral con IA, listas para firma." />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Nueva acta</CardTitle></CardHeader>
@@ -110,30 +161,78 @@ export default function Committees() {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Tipo de comité</Label>
-              <Select value={tipoComite} onValueChange={(v) => setTipoComite(v as "vigia" | "copasst" | "convivencia")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vigia">Vigía SST</SelectItem>
-                  <SelectItem value="copasst">COPASST</SelectItem>
-                  <SelectItem value="convivencia">Convivencia Laboral</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Tipo de comite</Label>
+                <Select value={tipoComite} onValueChange={(v) => setTipoComite(v as "vigia" | "copasst" | "convivencia")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vigia">Vigia SST</SelectItem>
+                    <SelectItem value="copasst">COPASST</SelectItem>
+                    <SelectItem value="convivencia">Convivencia Laboral</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de reunion</Label>
+                <Select value={tipoReunion} onValueChange={(v) => setTipoReunion(v as "ordinaria" | "extraordinaria")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ordinaria">Ordinaria</SelectItem>
+                    <SelectItem value="extraordinaria">Extraordinaria</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Lugar</Label>
+                <Input value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Oficinas de la empresa" />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Hora inicio</Label>
+                <Input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Hora fin</Label>
+                <Input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="points">Puntos a tratar (uno por línea)</Label>
-              <Textarea id="points" rows={6} value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Revisión de inspecciones de seguridad&#10;Seguimiento a incidentes reportados&#10;Estado de capacitaciones SST&#10;Revisión de EPP" />
+              <Label htmlFor="points">Puntos a tratar (uno por linea)</Label>
+              <Textarea id="points" rows={5} value={points} onChange={(e) => setPoints(e.target.value)} placeholder={"Revision de inspecciones de seguridad\nSeguimiento a incidentes reportados\nEstado de capacitaciones SST\nRevision de EPP"} />
             </div>
-            <Button onClick={handleGenerate} disabled={generating} className="gap-2">
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {generating ? "Generando con IA..." : "Generar Acta con IA"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button onClick={handleGenerate} disabled={generating || (members.length > 0 && !hasQuorum)} className="gap-2">
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {generating ? "Generando con IA..." : "Generar Acta con IA"}
+              </Button>
+              {members.length > 0 && !hasQuorum && (
+                <span className="text-sm text-destructive flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4" />
+                  Sin quorum ({presentCount}/{quorumRequired} requeridos)
+                </span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
+        {/* Attendance + quorum panel */}
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Asistencia</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Asistencia</CardTitle>
+            {members.length > 0 && (
+              <div className={cn(
+                "flex items-center gap-2 mt-2 p-2 rounded-md text-sm font-medium",
+                hasQuorum ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
+              )}>
+                {hasQuorum ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                {hasQuorum
+                  ? `Quorum alcanzado (${presentCount}/${totalMembers})`
+                  : `Sin quorum: ${presentCount}/${totalMembers} (min. ${quorumRequired})`}
+              </div>
+            )}
+          </CardHeader>
           <CardContent className="space-y-2">
             {members.length > 0 ? members.map((m) => (
               <label key={m.id} className="flex items-center gap-3 rounded-md p-2 hover:bg-muted/40 cursor-pointer">
@@ -148,7 +247,7 @@ export default function Committees() {
               </label>
             )) : (
               <p className="text-sm text-muted-foreground">
-                {selectedEmpresa ? "No hay integrantes registrados para este comité." : "Selecciona una empresa."}
+                {selectedEmpresa ? "No hay integrantes registrados para este comite." : "Selecciona una empresa."}
               </p>
             )}
           </CardContent>
@@ -156,7 +255,7 @@ export default function Committees() {
       </div>
 
       {generatedActa && (
-        <Card className="shadow-card mt-6">
+        <Card className="shadow-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-success" /> Acta generada
@@ -165,7 +264,6 @@ export default function Committees() {
               const printW = window.open("", "_blank");
               if (!printW) { toast.error("Habilita ventanas emergentes"); return; }
               const empresa = empresas.find(e => e.id === selectedEmpresa);
-              // Convert markdown-like content to simple HTML
               const html = generatedActa
                 .replace(/^### (.+)$/gm, "<h3>$1</h3>")
                 .replace(/^## (.+)$/gm, "<h2>$1</h2>")
@@ -188,6 +286,62 @@ export default function Committees() {
           <CardContent>
             <div className="prose prose-sm max-w-none whitespace-pre-wrap font-mono text-xs bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">
               {generatedActa}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Acta history */}
+      {actas.length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <History className="h-4 w-4" /> Historial de actas ({actas.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {actas.map((a) => (
+                <div key={a.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-sm font-medium">
+                        Acta #{a.numero_acta} — {a.tipo_reunion}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(a.fecha_reunion).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                        {a.lugar ? ` — ${a.lugar}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {a.hay_quorum !== undefined && (
+                      <Badge variant={a.hay_quorum ? "default" : "destructive"} className="text-[10px]">
+                        {a.hay_quorum ? "Con quorum" : "Sin quorum"}
+                      </Badge>
+                    )}
+                    {a.generada_por_ia && (
+                      <Badge variant="secondary" className="text-[10px] gap-1">
+                        <Sparkles className="h-3 w-3" /> IA
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-[10px]">
+                      {a.estado}
+                    </Badge>
+                    {(a as any).contenido_generado && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => setGeneratedActa((a as any).contenido_generado)}
+                      >
+                        <FileText className="h-3 w-3" /> Ver
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

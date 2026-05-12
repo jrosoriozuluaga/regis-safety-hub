@@ -106,3 +106,18 @@
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
 }
+
+@media print {
+  /* Hide sidebar, header, and non-print elements */
+  [data-sidebar], header, .print\\:hidden, nav { display: none !important; }
+  /* Full width content */
+  main, [role="main"], .flex-1 { margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; }
+  /* Remove backgrounds */
+  body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Cards: remove shadow, keep borders */
+  .shadow-card, .shadow-elevated { box-shadow: none !important; }
+  /* Page breaks */
+  .print\\:break-before { page-break-before: always; }
+  /* Ensure badge colors print */
+  .badge, [class*="bg-"] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

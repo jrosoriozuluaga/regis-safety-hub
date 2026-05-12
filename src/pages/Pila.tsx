@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Clock, Send, RefreshCw, Bell } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Clock, Send, RefreshCw, Bell, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -172,9 +172,34 @@ export default function Pila() {
 
       toast.success(`Recordatorio enviado a ${empresa.email_contacto}`);
       loadRecords();
-    } catch {
-      toast.info(`Recordatorio programado para ${record.empresa_razon_social} — periodo ${record.periodo}`);
+    } catch (err: any) {
+      toast.error(`Error al enviar recordatorio: ${err.message || "No se pudo conectar con el servicio de correo. Verifica la configuracion de n8n o Edge Functions."}`);
     }
+  };
+
+  const handleWhatsAppReminder = (record: PilaRecord) => {
+    const empresa = empresas.find(e => e.id === record.empresa_id);
+    if (!empresa) { toast.error("Empresa no encontrada"); return; }
+
+    const whatsapp = (empresa as any).whatsapp_contacto_pila || (empresa as any).telefono;
+    if (!whatsapp) {
+      toast.error("No hay numero de WhatsApp registrado para esta empresa. Agrega el numero en la ficha de la empresa.");
+      return;
+    }
+
+    // Clean phone number: remove spaces, dashes, parentheses
+    const cleanPhone = whatsapp.replace(/[\s\-\(\)]/g, "").replace(/^\+/, "");
+    const phone = cleanPhone.startsWith("57") ? cleanPhone : `57${cleanPhone}`;
+
+    const mes = record.periodo.split("-")[1];
+    const anio = record.periodo.split("-")[0];
+    const meses = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const mesNombre = meses[parseInt(mes)] || mes;
+
+    const message = `Cordial saludo, le escribimos desde Regis Colombia.\n\nSolicitamos amablemente el envio de la *Planilla PILA* de *${empresa.razon_social}* correspondiente al periodo *${mesNombre} ${anio}*.\n\nPuede enviar el PDF como respuesta a este mensaje o al correo sgsst@regiscolombia.com.\n\nGracias.`;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
+    toast.success(`WhatsApp abierto para ${empresa.razon_social}`);
   };
 
   const handleFiles = async (files: File[]) => {
@@ -385,15 +410,28 @@ export default function Pila() {
                       {(user?.role === "admin" || user?.role === "consultor") && (
                         <TableCell className="text-right">
                           {r.estado !== "cargada" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="gap-1.5 text-xs"
-                              onClick={() => handleSendReminder(r)}
-                            >
-                              <Bell className="h-3.5 w-3.5" />
-                              {r.intentos_solicitud ? `Recordatorio (${r.intentos_solicitud})` : "Recordatorio"}
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 text-xs"
+                                onClick={() => handleSendReminder(r)}
+                                title="Enviar recordatorio por correo"
+                              >
+                                <Bell className="h-3.5 w-3.5" />
+                                {r.intentos_solicitud ? `(${r.intentos_solicitud})` : "Email"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 text-xs text-[#25D366] hover:text-[#128C7E] hover:bg-green-50"
+                                onClick={() => handleWhatsAppReminder(r)}
+                                title="Enviar recordatorio por WhatsApp"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                WhatsApp
+                              </Button>
+                            </div>
                           )}
                         </TableCell>
                       )}

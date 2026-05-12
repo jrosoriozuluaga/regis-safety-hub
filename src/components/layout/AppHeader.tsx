@@ -1,4 +1,5 @@
-import { Bell, ChevronDown, LogOut, User as UserIcon, Settings, Shield, UserCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, ChevronDown, LogOut, User as UserIcon, Settings, Shield, UserCircle2, AlertTriangle, FileText, Stethoscope, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -11,17 +12,61 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useViewMode } from "@/context/ViewModeContext";
 import { useAuth } from "@/context/AuthContext";
-import { notificationsService } from "@/services";
+import { alertsService, type AlertItem } from "@/services";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+
+const ALERT_ICON: Record<AlertItem["tipo"], React.ElementType> = {
+  pila_vencida: FileText,
+  pila_pendiente: FileText,
+  examen_restriccion: Stethoscope,
+  cumplimiento_bajo: ClipboardCheck,
+};
+
+const SEVERITY_COLOR: Record<AlertItem["severidad"], string> = {
+  alta: "bg-red-500",
+  media: "bg-amber-500",
+  baja: "bg-blue-500",
+};
+
+const SEVERITY_TEXT: Record<AlertItem["severidad"], string> = {
+  alta: "text-red-600",
+  media: "text-amber-600",
+  baja: "text-blue-600",
+};
 
 export function AppHeader() {
   const { mode, setMode } = useViewMode();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const unread = 0;
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      try {
+        const data = await alertsService.getAlerts();
+        if (mounted) setAlerts(data);
+      } catch {
+        // silently fail
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    // Refresh alerts every 5 minutes
+    const interval = setInterval(load, 5 * 60 * 1000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
+
+  const highCount = alerts.filter((a) => a.severidad === "alta").length;
+  const totalCount = alerts.length;
+
   const initials = (user?.companyName ?? "RG")
     .split(" ")
     .map((p) => p[0])
@@ -33,7 +78,6 @@ export function AppHeader() {
     logout();
     navigate("/login", { replace: true });
   }
-
 
   return (
     <header className="h-16 border-b bg-card flex items-center gap-3 px-4 sticky top-0 z-30">
@@ -61,19 +105,68 @@ export function AppHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
-            {unread > 0 && (
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
+            {totalCount > 0 && (
+              <span className={cn(
+                "absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center",
+                highCount > 0 ? "bg-destructive" : "bg-amber-500"
+              )}>
+                {totalCount > 99 ? "99+" : totalCount}
+              </span>
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-          <DropdownMenuLabel className="flex items-center justify-between">
-            Notificaciones <Badge variant="secondary">{unread} nuevas</Badge>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="flex flex-col items-start gap-0.5 py-2.5">
-            <span className="text-xs text-muted-foreground">No hay notificaciones nuevas</span>
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-96 p-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <span className="font-semibold text-sm">Alertas del Sistema</span>
+            <div className="flex gap-1.5">
+              {highCount > 0 && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                  {highCount} urgente{highCount > 1 ? "s" : ""}
+                </Badge>
+              )}
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                {totalCount} total
+              </Badge>
+            </div>
+          </div>
+          <ScrollArea className="max-h-80">
+            {loading && totalCount === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Cargando alertas...</div>
+            ) : totalCount === 0 ? (
+              <div className="py-8 text-center">
+                <Bell className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Sin alertas pendientes</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Todo está al día</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {alerts.slice(0, 20).map((alert) => {
+                  const Icon = ALERT_ICON[alert.tipo];
+                  return (
+                    <div key={alert.id} className="flex gap-3 px-4 py-3 hover:bg-muted/50 cursor-default">
+                      <div className={cn("mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                        alert.severidad === "alta" ? "bg-red-100" : alert.severidad === "media" ? "bg-amber-100" : "bg-blue-100"
+                      )}>
+                        <Icon className={cn("h-4 w-4", SEVERITY_TEXT[alert.severidad])} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium truncate">{alert.titulo}</span>
+                          <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", SEVERITY_COLOR[alert.severidad])} />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{alert.descripcion}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {totalCount > 20 && (
+                  <div className="py-2 text-center text-xs text-muted-foreground border-t">
+                    +{totalCount - 20} alertas más
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -106,7 +199,6 @@ export function AppHeader() {
           <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />Cerrar sesión
           </DropdownMenuItem>
-
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

@@ -35,7 +35,7 @@ export function ClientDashboard() {
           <CardContent className="flex flex-col items-center pb-8">
             <CircularProgress value={score} size={220} />
             <div className="mt-6 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-success text-sm font-medium">
+              <div className={`flex items-center justify-center gap-1.5 text-sm font-medium ${score >= 86 ? "text-green-600" : score >= 60 ? "text-amber-600" : score > 0 ? "text-red-600" : "text-muted-foreground"}`}>
                 <CheckCircle2 className="h-4 w-4" /> {statusText}
               </div>
               {cumplimiento && (

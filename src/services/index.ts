@@ -36,6 +36,52 @@ export const empresasService = {
     return data;
   },
 
+  listAll: async (): Promise<Empresa[]> => {
+    const { data, error } = await supabase
+      .from("empresas_cliente")
+      .select("*")
+      .order("razon_social");
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  create: async (empresa: Partial<Empresa>): Promise<Empresa> => {
+    const { data, error } = await supabase
+      .from("empresas_cliente")
+      .insert(empresa)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  update: async (id: string, updates: Partial<Empresa>): Promise<Empresa> => {
+    const { data, error } = await supabase
+      .from("empresas_cliente")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  deactivate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("empresas_cliente")
+      .update({ activo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  activate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("empresas_cliente")
+      .update({ activo: true, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
   compliance: async (): Promise<{ empresa: Empresa; puntaje_total: number }[]> => {
     const { data, error } = await supabase
       .from("cumplimiento_empresa")
@@ -207,6 +253,53 @@ export const trabajadoresService = {
     if (error) throw error;
     return data ?? [];
   },
+
+  listAllByEmpresa: async (empresaId: string): Promise<Trabajador[]> => {
+    const { data, error } = await supabase
+      .from("trabajadores")
+      .select("*")
+      .eq("empresa_id", empresaId)
+      .order("nombre");
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  create: async (trabajador: Partial<Trabajador>): Promise<Trabajador> => {
+    const { data, error } = await supabase
+      .from("trabajadores")
+      .insert(trabajador)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  update: async (id: string, updates: Partial<Trabajador>): Promise<Trabajador> => {
+    const { data, error } = await supabase
+      .from("trabajadores")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  deactivate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("trabajadores")
+      .update({ activo: false, fecha_egreso: new Date().toISOString().split("T")[0] })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  activate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("trabajadores")
+      .update({ activo: true, fecha_egreso: null })
+      .eq("id", id);
+    if (error) throw error;
+  },
 };
 
 export const examenesService = {
@@ -257,11 +350,314 @@ export const cumplimientoService = {
   },
 };
 
+export type Usuario = {
+  id: string;
+  auth_user_id: string | null;
+  email: string;
+  nombre: string;
+  rol: "admin" | "consultor" | "cliente";
+  empresa_id: string | null;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+  razon_social?: string;
+};
+
+export const usuariosService = {
+  list: async (): Promise<Usuario[]> => {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("*, empresas_cliente!usuarios_empresa_id_fkey(razon_social)")
+      .order("nombre");
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      razon_social: row.empresas_cliente?.razon_social || null,
+    }));
+  },
+
+  create: async (usuario: Partial<Usuario>): Promise<Usuario> => {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .insert(usuario)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  update: async (id: string, updates: Partial<Usuario>): Promise<Usuario> => {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  deactivate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ activo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  activate: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ activo: true, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  },
+};
+
+export type AlertItem = {
+  id: string;
+  tipo: "pila_vencida" | "pila_pendiente" | "examen_restriccion" | "cumplimiento_bajo";
+  titulo: string;
+  descripcion: string;
+  empresa_id?: string;
+  empresa_nombre?: string;
+  fecha: string;
+  severidad: "alta" | "media" | "baja";
+};
+
 export const notificationsService = {
   list: async (): Promise<Notification[]> => {
     return [];
   },
   pendingActions: async (): Promise<PendingAction[]> => {
     return [];
+  },
+};
+
+export const alertsService = {
+  getAlerts: async (): Promise<AlertItem[]> => {
+    const alerts: AlertItem[] = [];
+
+    // 1. PILAs vencidas
+    const { data: pilasVencidas } = await supabase
+      .from("pila_records")
+      .select("id, periodo, empresa_id, empresas_cliente(razon_social)")
+      .eq("estado", "vencida");
+    (pilasVencidas ?? []).forEach((p: any) => {
+      alerts.push({
+        id: `pila-v-${p.id}`,
+        tipo: "pila_vencida",
+        titulo: `PILA vencida: ${p.periodo}`,
+        descripcion: `${p.empresas_cliente?.razon_social ?? "Empresa"} — Periodo ${p.periodo} sin entregar`,
+        empresa_id: p.empresa_id,
+        empresa_nombre: p.empresas_cliente?.razon_social,
+        fecha: new Date().toISOString(),
+        severidad: "alta",
+      });
+    });
+
+    // 2. PILAs pendientes
+    const { data: pilasPendientes } = await supabase
+      .from("pila_records")
+      .select("id, periodo, empresa_id, empresas_cliente(razon_social)")
+      .eq("estado", "pendiente");
+    (pilasPendientes ?? []).forEach((p: any) => {
+      alerts.push({
+        id: `pila-p-${p.id}`,
+        tipo: "pila_pendiente",
+        titulo: `PILA pendiente: ${p.periodo}`,
+        descripcion: `${p.empresas_cliente?.razon_social ?? "Empresa"} — Periodo ${p.periodo} aún pendiente`,
+        empresa_id: p.empresa_id,
+        empresa_nombre: p.empresas_cliente?.razon_social,
+        fecha: new Date().toISOString(),
+        severidad: "media",
+      });
+    });
+
+    // 3. Exámenes con restricciones
+    const { data: examenesRestr } = await supabase
+      .from("examenes_medicos")
+      .select("id, empresa_id, trabajador_id, concepto_aptitud, fecha_examen, trabajadores(nombre), empresas_cliente(razon_social)")
+      .eq("concepto_aptitud", "apto_con_restricciones")
+      .order("fecha_examen", { ascending: false })
+      .limit(20);
+    (examenesRestr ?? []).forEach((e: any) => {
+      alerts.push({
+        id: `exam-r-${e.id}`,
+        tipo: "examen_restriccion",
+        titulo: `Examen con restricciones`,
+        descripcion: `${e.trabajadores?.nombre ?? "Trabajador"} (${e.empresas_cliente?.razon_social ?? ""}) — Apto con restricciones`,
+        empresa_id: e.empresa_id,
+        empresa_nombre: e.empresas_cliente?.razon_social,
+        fecha: e.fecha_examen,
+        severidad: "media",
+      });
+    });
+
+    // 4. Cumplimiento bajo (<60%)
+    const { data: cumplimiento } = await supabase
+      .from("cumplimiento_empresa")
+      .select("id, empresa_id, puntaje_total, fecha_evaluacion, empresas_cliente(razon_social)")
+      .lt("puntaje_total", 60)
+      .order("fecha_evaluacion", { ascending: false });
+    (cumplimiento ?? []).forEach((c: any) => {
+      alerts.push({
+        id: `cumpl-${c.id}`,
+        tipo: "cumplimiento_bajo",
+        titulo: `Cumplimiento bajo: ${c.puntaje_total}%`,
+        descripcion: `${c.empresas_cliente?.razon_social ?? "Empresa"} — Puntaje ${c.puntaje_total}% (< 60%)`,
+        empresa_id: c.empresa_id,
+        empresa_nombre: c.empresas_cliente?.razon_social,
+        fecha: c.fecha_evaluacion,
+        severidad: c.puntaje_total < 30 ? "alta" : "media",
+      });
+    });
+
+    // Sort by severity then date
+    const sevOrder = { alta: 0, media: 1, baja: 2 };
+    alerts.sort((a, b) => sevOrder[a.severidad] - sevOrder[b.severidad]);
+
+    return alerts;
+  },
+};
+
+export type ConfiguracionSistema = {
+  clave: string;
+  valor: string;
+  descripcion: string | null;
+  updated_at: string;
+};
+
+export const configuracionService = {
+  list: async (): Promise<ConfiguracionSistema[]> => {
+    const { data, error } = await supabase
+      .from("configuracion_sistema")
+      .select("*")
+      .order("clave");
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  update: async (clave: string, valor: string): Promise<void> => {
+    const { error } = await supabase
+      .from("configuracion_sistema")
+      .update({ valor, updated_at: new Date().toISOString() })
+      .eq("clave", clave);
+    if (error) throw error;
+  },
+
+  upsert: async (clave: string, valor: string, descripcion?: string): Promise<void> => {
+    const { error } = await supabase
+      .from("configuracion_sistema")
+      .upsert({ clave, valor, descripcion: descripcion ?? null, updated_at: new Date().toISOString() }, { onConflict: "clave" });
+    if (error) throw error;
+  },
+};
+
+export type LogActividad = {
+  id: string;
+  tipo: string;
+  modulo: string | null;
+  empresa_id: string | null;
+  usuario_id: string | null;
+  descripcion: string;
+  metadata: Record<string, any> | null;
+  created_at: string;
+  usuario_nombre?: string;
+  empresa_nombre?: string;
+};
+
+export const logsService = {
+  list: async (options?: { limit?: number; modulo?: string; empresaId?: string }): Promise<LogActividad[]> => {
+    let query = supabase
+      .from("logs_actividad")
+      .select("*, usuarios(nombre), empresas_cliente(razon_social)")
+      .order("created_at", { ascending: false })
+      .limit(options?.limit ?? 100);
+
+    if (options?.modulo) query = query.eq("modulo", options.modulo);
+    if (options?.empresaId) query = query.eq("empresa_id", options.empresaId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      usuario_nombre: row.usuarios?.nombre ?? null,
+      empresa_nombre: row.empresas_cliente?.razon_social ?? null,
+    }));
+  },
+
+  log: async (entry: {
+    tipo: string;
+    modulo: string;
+    descripcion: string;
+    empresa_id?: string | null;
+    usuario_id?: string | null;
+    metadata?: Record<string, any>;
+  }): Promise<void> => {
+    const { error } = await supabase.from("logs_actividad").insert({
+      tipo: entry.tipo,
+      modulo: entry.modulo,
+      descripcion: entry.descripcion,
+      empresa_id: entry.empresa_id ?? null,
+      usuario_id: entry.usuario_id ?? null,
+      metadata: entry.metadata ?? null,
+    });
+    if (error) console.error("Error logging activity:", error);
+  },
+};
+
+// ── Email Templates ──────────────────────────────
+export type PlantillaCorreo = {
+  id: string;
+  tipo: string;
+  nombre: string;
+  contenido: string;
+  version: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export const templatesService = {
+  list: async (): Promise<PlantillaCorreo[]> => {
+    const { data, error } = await supabase
+      .from("templates_documento")
+      .select("*")
+      .order("tipo")
+      .order("nombre");
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  getById: async (id: string): Promise<PlantillaCorreo | null> => {
+    const { data, error } = await supabase
+      .from("templates_documento")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) return null;
+    return data;
+  },
+
+  update: async (id: string, updates: Partial<PlantillaCorreo>): Promise<PlantillaCorreo> => {
+    const { data, error } = await supabase
+      .from("templates_documento")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  create: async (template: Omit<PlantillaCorreo, "id" | "created_at" | "updated_at">): Promise<PlantillaCorreo> => {
+    const { data, error } = await supabase
+      .from("templates_documento")
+      .insert(template)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   },
 };

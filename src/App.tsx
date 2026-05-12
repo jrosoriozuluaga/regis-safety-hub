@@ -14,6 +14,14 @@ import RiskMatrices from "./pages/RiskMatrices";
 import Committees from "./pages/Committees";
 import EmergencyPlans from "./pages/EmergencyPlans";
 import Compliance from "./pages/Compliance";
+import Companies from "./pages/Companies";
+import Users from "./pages/Users";
+import Workers from "./pages/Workers";
+import Settings from "./pages/Settings";
+import ActivityLog from "./pages/ActivityLog";
+import CalendarPage from "./pages/Calendar";
+import CompanyReport from "./pages/CompanyReport";
+import EmailTemplates from "./pages/EmailTemplates";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -39,6 +47,14 @@ function AppInner() {
               <Route path="/committees" element={<Committees />} />
               <Route path="/emergency-plans" element={<EmergencyPlans />} />
               <Route path="/compliance" element={<Compliance />} />
+              <Route path="/empresas" element={<Companies />} />
+              <Route path="/usuarios" element={<Users />} />
+              <Route path="/trabajadores" element={<Workers />} />
+              <Route path="/configuracion" element={<Settings />} />
+              <Route path="/actividad" element={<ActivityLog />} />
+              <Route path="/calendario" element={<CalendarPage />} />
+              <Route path="/informe" element={<CompanyReport />} />
+              <Route path="/plantillas-correo" element={<EmailTemplates />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />
