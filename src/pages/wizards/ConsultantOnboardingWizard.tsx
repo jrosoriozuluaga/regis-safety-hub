@@ -887,7 +887,7 @@ export default function ConsultantOnboardingWizard() {
     // TODO: Persist to localStorage
     // localStorage.setItem('consultant_onboarding_draft', JSON.stringify(wizardData));
     // toast.success("Borrador guardado");
-    console.log("DRAFT: Save to localStorage", wizardData);
+    // TODO: implement draft save
   };
 
   // ---------------------------------------------------------------------------
@@ -958,7 +958,7 @@ export default function ConsultantOnboardingWizard() {
       // TODO: toast.success("Consultor creado exitosamente");
       // TODO: navigate to /usuarios or /consultores
 
-      console.log("DRAFT: Submit wizard", wizardData);
+      // TODO: implement submit
     } catch (error) {
       console.error("Error creating consultant:", error);
       // TODO: toast.error("Error al crear el consultor");

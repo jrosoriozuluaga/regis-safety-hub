@@ -638,7 +638,7 @@ function WorkersImportStep({
       // 3. Mostrar UI de mapeo de columnas
       // 4. Validar datos y detectar duplicados
       // 5. Agregar a la lista de trabajadores
-      console.log("File upload not implemented yet");
+      // TODO: implement file upload
     },
     []
   );
@@ -1560,7 +1560,7 @@ export default function CompanyOnboardingWizard() {
       //   wizardData,
       // }));
       // toast.success("Borrador guardado");
-      console.log("Draft saved:", { currentStep, wizardData });
+      // TODO: implement draft save
       await new Promise((r) => setTimeout(r, 500)); // Simulated delay
     } finally {
       setIsSaving(false);
@@ -1580,7 +1580,7 @@ export default function CompanyOnboardingWizard() {
       // TODO: Send invitation email if acceso.enviarInvitacion
       // TODO: toast.success("Empresa activada exitosamente")
       // TODO: navigate("/companies")
-      console.log("Activating company:", wizardData);
+      // TODO: implement company activation
       await new Promise((r) => setTimeout(r, 1500)); // Simulated delay
     } catch (error) {
       // TODO: toast.error("No se pudo activar la empresa: " + error.message)
