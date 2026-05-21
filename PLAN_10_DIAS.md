@@ -329,3 +329,20 @@ Solo si algo sale mal en la grabación.
 - ❌ Migrar cálculo cumplimiento a función Postgres
 - ❌ Triggers DB automáticos
 - ❌ OCR dedicado (Claude Vision cubre 100%)
+
+---
+
+## Lo que NO se hace en estos 10 días
+
+- ❌ Migración de n8n Gmail → Outlook (Resend ya es neutral)
+- ❌ Outbox pattern completo (solo ON CONFLICT)
+- ❌ Materialized views (query directo es suficiente para 3 empresas demo)
+- ❌ Magic links de onboarding (fuera de scope mínimo)
+- ❌ Firma electrónica real (DocuSign/FirmaVirtual)
+- ❌ Integración Fireflies para transcripción de videollamadas
+- ❌ Whisper local (Whisper API es suficiente)
+- ❌ React Query en todas las páginas (solo donde ya está)
+- ❌ Test suite (no hay tests y no vale la pena para el concurso)
+- ❌ Migrar cálculo de cumplimiento a función Postgres (patrón C1/C2 de EFICIENCIAS). **Razón:** el cálculo frontend (`Compliance.tsx:128-148` via `useMemo`) funciona correctamente — itera `estandares_0312`, suma `peso_porcentual` por ciclo PHVA, y persiste en `cumplimiento_empresa` via `handleSave`. No es hardcoded. No justifica reescribir como función DB en 10 días. Documentar como deuda técnica para escalar a 90+ empresas (recálculo automático por trigger al cambiar evidencias).
+- ❌ Crear triggers DB automáticos (cero funciones/triggers verificado en Dashboard). Mantener lógica en código para esta entrega.
+- ❌ OCR dedicado (Claude Vision cubre el 100%)
