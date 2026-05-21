@@ -42,8 +42,8 @@ A unified platform where documents are requested automatically, processed by AI,
 |---|---|---|
 | :page_facing_up: | **PILA Automation** | Automated monthly payroll document requests, multi-channel reminders (email + WhatsApp), token-based public upload portal, overdue tracking, and auto-archival |
 | :microscope: | **AI Medical Exam Processing** | Upload medical exam PDFs and extract diagnoses, recommendations, and restrictions using Claude AI -- structured into actionable records |
-| :bar_chart: | **GTC 45 Risk Matrices** | AI-generated occupational risk matrices following the GTC 45 methodology, pre-populated from CIIU economic activity codes |
-| :busts_in_silhouette: | **Committee Minutes (Actas)** | Auto-generated COPASST and Convivencia committee meeting minutes with pre-loaded members, agenda items, and signature tracking |
+| :bar_chart: | **GTC 45 Risk Matrices** | AI-generated occupational risk matrices following the GTC 45 methodology, pre-populated from CIIU economic activity codes, inline editable, with ARL approval upload |
+| :busts_in_silhouette: | **Committee Minutes (Actas)** | Auto-generated COPASST and Convivencia committee meeting minutes with pre-loaded members, agenda items, signature tracking, and **Fireflies.ai + Whisper transcription** for auto-generating minutes from virtual or in-person meetings |
 | :rotating_light: | **Emergency Plan Analysis** | Record or upload audio inspections, transcribed via Whisper and analyzed by Claude to produce structured vulnerability assessments |
 | :white_check_mark: | **Compliance Dashboard** | Real-time PHVA (Plan-Do-Check-Act) scoring against Resolution 0312 standards, with per-company and per-standard drill-down |
 | :wrench: | **Equipment Inventory** | Track safety equipment with expiration dates, automated renewal reminders, and maintenance logs |
@@ -51,6 +51,13 @@ A unified platform where documents are requested automatically, processed by AI,
 | :calendar: | **Monthly Bitacora** | Auto-generated monthly activity reports summarizing all actions taken per company |
 | :envelope: | **Email Templates** | Editable email and document templates stored in the database -- no code changes needed when formats change |
 | :clipboard: | **Full Activity Logging** | Every user action is recorded with timestamps, user, module, and company for complete audit trails |
+| :chart_with_upwards_trend: | **Observability Dashboard** | Operational metrics: activity trends, PILA status heatmap, AI API costs, compliance distribution |
+| :eyes: | **Admin/Client Preview** | Toggle between admin and client views with company selector to preview exactly what each client sees |
+| :link: | **Digital Attendance** | Token-based public attendance confirmation links for committee meetings -- no login required |
+| :arrow_up: | **PILA Escalation** | Automatic escalation to HR leadership after max reminders exceeded |
+| :zap: | **AI Cost Optimization** | Haiku-first model cascade with Sonnet fallback -- reduces AI costs by ~70% |
+| :1234: | **Table Pagination** | Client-side pagination across all data tables with reusable components |
+| :hourglass_flowing_sand: | **Skeleton Loading** | Animated skeleton states for dashboard and data-heavy pages |
 
 ---
 
@@ -95,13 +102,14 @@ A unified platform where documents are requested automatically, processed by AI,
 | **Backend** | Supabase (PostgreSQL) | Database, authentication, file storage |
 | **Serverless** | Supabase Edge Functions (Deno) | AI processing, email/WhatsApp sending, report generation |
 | **AI - Text** | Anthropic Claude API | PDF extraction, risk matrix generation, meeting minutes, vulnerability analysis |
-| **AI - Audio** | OpenAI Whisper API | Audio transcription for emergency plan inspections |
+| **AI - Audio** | OpenAI Whisper API | Audio transcription for emergency plan inspections and in-person meeting minutes |
+| **AI - Meetings** | Fireflies.ai API | Virtual meeting transcription with speaker diarization for committee minutes |
 | **Automation** | n8n (self-hosted) | PILA workflow orchestration, scheduled tasks, reminder chains |
 | **Email** | Resend API | Transactional email delivery |
 | **Messaging** | Twilio | WhatsApp notifications and reminders |
 | **Routing** | React Router v6 | Client-side routing with role-based guards |
 | **State** | React Context + TanStack Query | Authentication state and server data caching |
-| **Charts** | Recharts | Compliance and analytics visualizations |
+| **Charts** | Custom SVG | Compliance circular progress and analytics |
 | **Exports** | Custom HTML-to-print | Branded document exports with company headers and footers |
 
 ---
@@ -192,7 +200,7 @@ Claude powers four core capabilities across the platform:
 
 - **Risk Matrix Generation** (`RiskMatrices.tsx`): Given a company's CIIU economic activity code, Claude generates a complete GTC 45 risk matrix with hazard identification, risk assessment, and control measures tailored to the specific industry.
 
-- **Meeting Minutes Generation** (`generate-acta`): From agenda items, attendee lists, and discussion notes, Claude produces formal committee meeting minutes (actas) formatted to Colombian regulatory standards for COPASST and Convivencia committees.
+- **Meeting Minutes Generation** (`generate-acta`): From agenda items, attendee lists, and discussion notes -- or from **Fireflies.ai / Whisper transcriptions** with speaker diarization -- Claude produces formal committee meeting minutes (actas) formatted to Colombian regulatory standards for COPASST and Convivencia committees.
 
 - **Emergency Vulnerability Analysis** (`transcribe-audio`): After Whisper transcribes an audio inspection recording, Claude analyzes the transcript to produce a structured vulnerability assessment covering natural, technological, and social threats.
 
@@ -222,10 +230,10 @@ Claude powers four core capabilities across the platform:
 
 | Module | Key Capabilities | AI-Powered |
 |--------|-----------------|:----------:|
-| **PILA Management** | Auto-request, multi-channel reminders, public upload portal, overdue tracking, period sync | -- |
-| **Medical Exams** | PDF upload, AI extraction of diagnoses and recommendations, structured records | Yes |
-| **Risk Matrices** | CIIU-based generation, GTC 45 methodology, editable risk entries | Yes |
-| **Committees** | COPASST/Convivencia periods, member management, auto-generated minutes | Yes |
+| **PILA Management** | Auto-request, multi-channel reminders, public upload portal, overdue tracking, period sync, HR escalation | -- |
+| **Medical Exams** | PDF upload, AI extraction with non-medical detection and confidence scoring, structured records | Yes |
+| **Risk Matrices** | CIIU-based generation, GTC 45 methodology, inline editing, ARL approval upload | Yes |
+| **Committees** | COPASST/Convivencia periods, member management, minutes from agenda or Fireflies/Whisper transcription, digital attendance | Yes |
 | **Emergency Plans** | Audio recording, transcription, vulnerability analysis, structured reports | Yes |
 | **Compliance** | Real-time 0312 scoring, PHVA breakdown, per-standard tracking, chapter auto-selection | -- |
 | **Equipment Inventory** | Expiration tracking, renewal reminders, maintenance logs | -- |
@@ -239,7 +247,7 @@ Claude powers four core capabilities across the platform:
 
 ## Edge Functions
 
-Seven Supabase Edge Functions deployed on Deno runtime:
+Eight Supabase Edge Functions deployed on Deno runtime:
 
 | Function | Auth | Description |
 |----------|:----:|-------------|
@@ -248,8 +256,9 @@ Seven Supabase Edge Functions deployed on Deno runtime:
 | `generate-bitacora` | Public | Generates monthly activity reports (bitacora) summarizing all actions per company |
 | `weekly-summary` | Public | Produces weekly consultant summaries with pending items across all assigned companies |
 | `transcribe-audio` | JWT | Transcribes audio recordings via Whisper, then runs Claude vulnerability analysis |
-| `process-exam-pdf` | JWT | Extracts medical exam data from PDFs using Claude for structured record creation |
-| `generate-acta` | JWT | Generates formal committee meeting minutes using Claude from agenda and discussion data |
+| `process-exam-pdf` | JWT | Extracts medical exam data from PDFs using Claude with non-medical document detection and confidence scoring |
+| `generate-acta` | JWT | Generates formal committee meeting minutes from agenda data or meeting transcriptions (Fireflies/Whisper) |
+| `fetch-fireflies-transcripts` | Public | Imports meeting transcriptions from Fireflies.ai with speaker diarization |
 
 ---
 
