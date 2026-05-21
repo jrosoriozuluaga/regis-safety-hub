@@ -70,6 +70,13 @@ export default function EmergencyPlans() {
 
   const processAudio = async (audioBlob: Blob | File) => {
     if (!selectedEmpresa) { toast.error("Selecciona una empresa primero"); return; }
+
+    // Validate file size (max 25MB)
+    if (audioBlob.size > 25 * 1024 * 1024) {
+      toast.error("El archivo de audio excede 25 MB. Intenta con una grabación más corta.");
+      return;
+    }
+
     setLoading(true);
     setTranscript("");
     setAnalysis(null);
@@ -78,22 +85,35 @@ export default function EmergencyPlans() {
       formData.append("audio", audioBlob, "recording.webm");
       formData.append("empresa_id", selectedEmpresa);
 
-      const { data, error } = await supabase.functions.invoke("transcribe-audio", {
-        body: formData,
-      });
+      // Race against timeout (90s)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("La transcripción tardó demasiado (>90s). Intenta con un audio más corto.")), 90000)
+      );
+
+      const { data, error } = await Promise.race([
+        supabase.functions.invoke("transcribe-audio", { body: formData }),
+        timeoutPromise,
+      ]) as any;
 
       if (error) throw error;
+      if (!data) throw new Error("Respuesta vacía del servidor");
 
-      setTranscript(data.transcripcion);
-      setAnalysis(data.analisis_json);
-      toast.success("Audio transcrito y analizado con IA");
+      setTranscript(data.transcripcion || "");
+      setAnalysis(data.analisis_json || null);
+
+      if (data.transcripcion) {
+        toast.success("Audio transcrito y analizado con IA");
+      } else {
+        toast.warning("El audio fue procesado pero no se pudo extraer texto. Intenta con una grabación más clara.");
+      }
 
       const updated = user?.role === "cliente"
         ? await emergenciasService.listByEmpresa(selectedEmpresa)
         : await emergenciasService.listAll();
       setPlanes(updated);
     } catch (err: any) {
-      toast.error(err.message || "Error al procesar el audio");
+      console.error("Error procesando audio:", err);
+      toast.error(err.message || "Error al procesar el audio. Intenta con un audio más corto o de mejor calidad.");
     } finally {
       setLoading(false);
     }
@@ -141,10 +161,11 @@ export default function EmergencyPlans() {
   const handleExportPlan = (plan: PlanEmergencia) => {
     const emp = empresas.find((e) => e.id === plan.empresa_id);
     const a = plan.analisis_json;
+    if (!a) { toast.error("Este plan no tiene análisis de vulnerabilidad para exportar"); return; }
     const headerHTML = getExportHeaderHTML({
-      logoSrc: logo,
-      module: "PLAN-EME",
-      nit: emp?.nit || "",
+      title: "Plan de Emergencia",
+      moduleCode: "PLAN-EME",
+      empresaNit: emp?.nit || "",
       empresaNombre: emp?.razon_social || plan.empresa_razon_social || "Empresa",
     });
 
@@ -257,7 +278,7 @@ table{margin:8px 0}
         </Card>
       </div>
 
-      {analysis && (
+      {analysis && typeof analysis === "object" && (
         <Card className="shadow-card mt-6">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
