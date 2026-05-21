@@ -331,7 +331,7 @@ export default function CalendarPage() {
                           <div
                             key={ev.id}
                             className={cn(
-                              "text-[9px] leading-tight px-1 py-0.5 rounded truncate border",
+                              "text-xs leading-tight px-1 py-0.5 rounded truncate border",
                               MODULO_COLORS[ev.modulo],
                             )}
                           >
@@ -339,7 +339,7 @@ export default function CalendarPage() {
                           </div>
                         ))}
                         {dayEvents.length > 3 && (
-                          <div className="text-[9px] text-muted-foreground px-1">
+                          <div className="text-xs text-muted-foreground px-1">
                             +{dayEvents.length - 3} más
                           </div>
                         )}
@@ -385,7 +385,7 @@ export default function CalendarPage() {
                         <Icon className="h-4 w-4" />
                         <span className="text-xs font-semibold uppercase">{MODULO_LABELS[ev.modulo]}</span>
                         {ev.estado && (
-                          <Badge variant={ev.estado === "cargada" ? "default" : ev.estado === "vencida" ? "destructive" : "secondary"} className="text-[9px] ml-auto">
+                          <Badge variant={ev.estado === "cargada" ? "default" : ev.estado === "vencida" ? "destructive" : "secondary"} className="text-xs ml-auto">
                             {ev.estado}
                           </Badge>
                         )}
