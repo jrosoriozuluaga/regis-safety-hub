@@ -74,6 +74,21 @@ export default function UploadPila() {
     const file = files[0];
     if (!file) return;
 
+    // Validate file type
+    const allowedTypes = [".pdf", ".xlsx", ".xls", ".zip"];
+    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+    if (!allowedTypes.includes(ext)) {
+      toast.error("Formato no permitido. Solo se aceptan archivos PDF, Excel o ZIP.");
+      return;
+    }
+
+    // Validate file size (max 25MB)
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("El archivo excede el límite de 25 MB. Intente con un archivo más pequeño.");
+      return;
+    }
+
     setState("uploading");
     try {
       const filePath = `pila/${tokenData.empresa_id}/${tokenData.periodo}_${file.name}`;

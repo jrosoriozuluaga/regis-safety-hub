@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Stethoscope, Loader2, AlertTriangle, Search } from "lucide-react";
+import { Sparkles, Stethoscope, Loader2, AlertTriangle, Search, FileText } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -98,12 +98,18 @@ export default function MedicalExams() {
       const extracted = data.extracted;
       setLastExtracted(extracted);
 
+      // Warn if extraction looks incomplete (concepto defaults to "apto" when AI can't extract)
+      const looksIncomplete = !extracted?.trabajador?.nombre && !extracted?.trabajador?.cedula;
+      if (looksIncomplete) {
+        toast.warning("La extracción no pudo identificar datos del trabajador. Verifique el concepto manualmente — puede haberse asignado 'Apto' por defecto.", { duration: 8000 });
+      }
+
       // Check for duplicates after extraction
       const dup = checkDuplicate(extracted);
       if (dup) {
         setDuplicateWarning(dup);
         toast.warning("Posible duplicado detectado. Este trabajador ya tiene un examen reciente registrado.", { duration: 6000 });
-      } else {
+      } else if (!looksIncomplete) {
         toast.success(data.message || "PDF procesado con IA exitosamente");
       }
 
@@ -250,6 +256,7 @@ export default function MedicalExams() {
                       <TableHead>Fecha</TableHead>
                       <TableHead>Concepto</TableHead>
                       <TableHead>IA</TableHead>
+                      <TableHead className="w-20"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -266,6 +273,18 @@ export default function MedicalExams() {
                         </TableCell>
                         <TableCell>
                           {ex.procesado_por_ia && <Sparkles className="h-3.5 w-3.5 text-success" />}
+                        </TableCell>
+                        <TableCell>
+                          {ex.archivo_url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs gap-1"
+                              onClick={() => window.open(ex.archivo_url, "_blank")}
+                            >
+                              <FileText className="h-3.5 w-3.5" /> Ver PDF
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
