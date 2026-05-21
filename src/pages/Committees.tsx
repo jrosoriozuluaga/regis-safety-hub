@@ -112,7 +112,7 @@ export default function Committees() {
 
       // Persist acta to database
       const nextNumero = actas.length > 0 ? Math.max(...actas.map(a => a.numero_acta || 0)) + 1 : 1;
-      await comitesService.createActa({
+      const savedActa = await comitesService.createActa({
         comite_id: selectedComite,
         numero_acta: nextNumero,
         fecha_reunion: new Date().toISOString(),
@@ -126,13 +126,21 @@ export default function Committees() {
         estado: "borrador",
       });
 
-      // Save attendance records
-      const attendanceRecords = asistentesIds.map(integranteId => ({
-        acta_id: undefined as any, // Will be set below
-        integrante_id: integranteId,
-        presente: true,
-      }));
-      // Reload actas to get the new one
+      // Save attendance records to asistencia_comite
+      if (savedActa?.id && asistentesIds.length > 0) {
+        try {
+          await comitesService.insertAsistencia(
+            asistentesIds.map(integranteId => ({
+              acta_id: savedActa.id,
+              integrante_id: integranteId,
+              presente: true,
+            }))
+          );
+        } catch (attErr: any) {
+          console.error("Error saving attendance:", attErr);
+        }
+      }
+      // Reload actas
       const updatedActas = await comitesService.actas(selectedComite);
       setActas(updatedActas);
 

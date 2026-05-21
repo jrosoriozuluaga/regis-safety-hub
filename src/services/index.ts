@@ -387,6 +387,42 @@ export const pilaService = {
     const enProceso = cargadas + validadas;
     return { total, cargadas, validadas, aprobadas, pendientes, vencidas, pct, enProceso };
   },
+
+  /** Validate a PILA record (analyst review) */
+  validateRecord: async (recordId: string, userId?: string, empresaId?: string, periodo?: string): Promise<void> => {
+    const { error } = await supabase.from("pila_records").update({
+      estado: "validada",
+      validado_por: userId,
+      fecha_validacion: new Date().toISOString(),
+    }).eq("id", recordId);
+    if (error) throw error;
+    await logsService.log({
+      tipo: "validacion",
+      modulo: "pila",
+      descripcion: `Planilla PILA validada — periodo ${periodo || ""}`,
+      empresa_id: empresaId,
+      usuario_id: userId,
+      metadata: { pila_record_id: recordId, periodo },
+    });
+  },
+
+  /** Approve a PILA record (final approval, grants compliance points) */
+  approveRecord: async (recordId: string, userId?: string, empresaId?: string, periodo?: string): Promise<void> => {
+    const { error } = await supabase.from("pila_records").update({
+      estado: "aprobada",
+      aprobado_por: userId,
+      fecha_aprobacion: new Date().toISOString(),
+    }).eq("id", recordId);
+    if (error) throw error;
+    await logsService.log({
+      tipo: "aprobacion",
+      modulo: "pila",
+      descripcion: `Planilla PILA aprobada — periodo ${periodo || ""} — puntos de cumplimiento otorgados`,
+      empresa_id: empresaId,
+      usuario_id: userId,
+      metadata: { pila_record_id: recordId, periodo },
+    });
+  },
 };
 
 export const matricesService = {
@@ -514,6 +550,12 @@ export const comitesService = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  insertAsistencia: async (records: { acta_id: string; integrante_id: string; presente: boolean }[]): Promise<void> => {
+    if (records.length === 0) return;
+    const { error } = await supabase.from("asistencia_comite").insert(records);
+    if (error) throw error;
   },
 };
 

@@ -441,22 +441,11 @@ export default function Pila() {
                                 size="sm"
                                 className="gap-1.5 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50"
                                 onClick={async () => {
-                                  const { error } = await supabase.from("pila_records").update({
-                                    estado: "validada",
-                                    validado_por: user?.id,
-                                    fecha_validacion: new Date().toISOString(),
-                                  }).eq("id", r.id);
-                                  if (error) { toast.error("Error al validar planilla"); return; }
-                                  await logsService.log({
-                                    tipo: "validacion",
-                                    modulo: "pila",
-                                    descripcion: `Planilla PILA validada — periodo ${r.periodo}`,
-                                    empresa_id: r.empresa_id,
-                                    usuario_id: user?.id,
-                                    metadata: { pila_record_id: r.id, periodo: r.periodo },
-                                  });
-                                  toast.success("Planilla validada por el analista");
-                                  loadRecords();
+                                  try {
+                                    await pilaService.validateRecord(r.id, user?.id, r.empresa_id, r.periodo);
+                                    toast.success("Planilla validada por el analista");
+                                    loadRecords();
+                                  } catch { toast.error("Error al validar planilla"); }
                                 }}
                                 title="Marcar como validada por el analista"
                               >
@@ -470,22 +459,11 @@ export default function Pila() {
                                 size="sm"
                                 className="gap-1.5 text-xs text-green-600 hover:text-green-800 hover:bg-green-50"
                                 onClick={async () => {
-                                  const { error } = await supabase.from("pila_records").update({
-                                    estado: "aprobada",
-                                    aprobado_por: user?.id,
-                                    fecha_aprobacion: new Date().toISOString(),
-                                  }).eq("id", r.id);
-                                  if (error) { toast.error("Error al aprobar planilla"); return; }
-                                  await logsService.log({
-                                    tipo: "aprobacion",
-                                    modulo: "pila",
-                                    descripcion: `Planilla PILA aprobada — periodo ${r.periodo} — puntos de cumplimiento otorgados`,
-                                    empresa_id: r.empresa_id,
-                                    usuario_id: user?.id,
-                                    metadata: { pila_record_id: r.id, periodo: r.periodo },
-                                  });
-                                  toast.success("Planilla aprobada — puntos de cumplimiento otorgados");
-                                  loadRecords();
+                                  try {
+                                    await pilaService.approveRecord(r.id, user?.id, r.empresa_id, r.periodo);
+                                    toast.success("Planilla aprobada — puntos de cumplimiento otorgados");
+                                    loadRecords();
+                                  } catch { toast.error("Error al aprobar planilla"); }
                                 }}
                                 title="Aprobar y otorgar puntos de cumplimiento"
                               >
