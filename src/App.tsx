@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,58 +8,79 @@ import { ViewModeProvider } from "@/context/ViewModeContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import Pila from "./pages/Pila";
-import MedicalExams from "./pages/MedicalExams";
-import RiskMatrices from "./pages/RiskMatrices";
-import Committees from "./pages/Committees";
-import EmergencyPlans from "./pages/EmergencyPlans";
-import Compliance from "./pages/Compliance";
-import Companies from "./pages/Companies";
-import Users from "./pages/Users";
-import Workers from "./pages/Workers";
-import Settings from "./pages/Settings";
-import ActivityLog from "./pages/ActivityLog";
-import CalendarPage from "./pages/Calendar";
-import CompanyReport from "./pages/CompanyReport";
-import EmailTemplates from "./pages/EmailTemplates";
+import { Loader2 } from "lucide-react";
+
+// Eagerly loaded (login + dashboard are first-paint critical)
 import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import NotFound from "./pages/NotFound.tsx";
+import Dashboard from "./pages/Dashboard";
+
+// Lazy-loaded modules (split into separate chunks)
+const Pila = lazy(() => import("./pages/Pila"));
+const MedicalExams = lazy(() => import("./pages/MedicalExams"));
+const RiskMatrices = lazy(() => import("./pages/RiskMatrices"));
+const Committees = lazy(() => import("./pages/Committees"));
+const EmergencyPlans = lazy(() => import("./pages/EmergencyPlans"));
+const Compliance = lazy(() => import("./pages/Compliance"));
+const Companies = lazy(() => import("./pages/Companies"));
+const Users = lazy(() => import("./pages/Users"));
+const Workers = lazy(() => import("./pages/Workers"));
+const Settings = lazy(() => import("./pages/Settings"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const CalendarPage = lazy(() => import("./pages/Calendar"));
+const CompanyReport = lazy(() => import("./pages/CompanyReport"));
+const EmailTemplates = lazy(() => import("./pages/EmailTemplates"));
+const Documents = lazy(() => import("./pages/Documents"));
+const EquipmentInventory = lazy(() => import("./pages/EquipmentInventory"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const UploadPila = lazy(() => import("./pages/UploadPila"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    </div>
+  );
+}
 
 function AppInner() {
   const { user } = useAuth();
   return (
     <ViewModeProvider user={user}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/pila" element={<Pila />} />
-              <Route path="/medical-exams" element={<MedicalExams />} />
-              <Route path="/risk-matrices" element={<RiskMatrices />} />
-              <Route path="/committees" element={<Committees />} />
-              <Route path="/emergency-plans" element={<EmergencyPlans />} />
-              <Route path="/compliance" element={<Compliance />} />
-              <Route path="/empresas" element={<Companies />} />
-              <Route path="/usuarios" element={<Users />} />
-              <Route path="/trabajadores" element={<Workers />} />
-              <Route path="/configuracion" element={<Settings />} />
-              <Route path="/actividad" element={<ActivityLog />} />
-              <Route path="/calendario" element={<CalendarPage />} />
-              <Route path="/informe" element={<CompanyReport />} />
-              <Route path="/plantillas-correo" element={<EmailTemplates />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/upload-pila" element={<UploadPila />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/pila" element={<Pila />} />
+                <Route path="/medical-exams" element={<MedicalExams />} />
+                <Route path="/risk-matrices" element={<RiskMatrices />} />
+                <Route path="/committees" element={<Committees />} />
+                <Route path="/emergency-plans" element={<EmergencyPlans />} />
+                <Route path="/compliance" element={<Compliance />} />
+                <Route path="/empresas" element={<Companies />} />
+                <Route path="/usuarios" element={<Users />} />
+                <Route path="/trabajadores" element={<Workers />} />
+                <Route path="/configuracion" element={<Settings />} />
+                <Route path="/actividad" element={<ActivityLog />} />
+                <Route path="/calendario" element={<CalendarPage />} />
+                <Route path="/informe" element={<CompanyReport />} />
+                <Route path="/plantillas-correo" element={<EmailTemplates />} />
+                <Route path="/documentos" element={<Documents />} />
+                <Route path="/inventario-equipos" element={<EquipmentInventory />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </ViewModeProvider>
   );

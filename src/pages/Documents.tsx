@@ -1,0 +1,719 @@
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  Upload,
+  FileText,
+  Building2,
+  Trash2,
+  Download,
+  Plus,
+  FolderOpen,
+  Eye,
+  Filter,
+  Loader2,
+  ShieldCheck,
+  BadgeCheck,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { FileDropzone } from "@/components/common/FileDropzone";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { logsService } from "@/services";
+import type { Empresa } from "@/types/domain";
+
+/* ------------------------------------------------------------------ */
+/*  Constants                                                          */
+/* ------------------------------------------------------------------ */
+
+const DOCUMENT_TYPES = [
+  { value: "politica_sst", label: "Política SST" },
+  { value: "acta_recursos", label: "Acta de recursos" },
+  { value: "plan_capacitacion", label: "Plan de capacitación" },
+  { value: "cronograma", label: "Cronograma" },
+  { value: "reglamento_higiene", label: "Reglamento higiene" },
+  { value: "matriz_legal", label: "Matriz legal" },
+  { value: "plan_trabajo_anual", label: "Plan de trabajo anual" },
+  { value: "plan_emergencias", label: "Plan de emergencias" },
+  { value: "acta_copasst", label: "Acta COPASST" },
+  { value: "acta_convivencia", label: "Acta Convivencia" },
+  { value: "otro", label: "Otro" },
+] as const;
+
+type DocumentType = (typeof DOCUMENT_TYPES)[number]["value"];
+
+const tipoLabel = (tipo: string) =>
+  DOCUMENT_TYPES.find((t) => t.value === tipo)?.label ?? tipo;
+
+type Documento = {
+  id: string;
+  empresa_id: string;
+  tipo: string;
+  nombre_archivo: string;
+  periodo_mes: number | null;
+  periodo_anio: number | null;
+  archivo_url: string | null;
+  drive_file_id: string | null;
+  drive_folder_id: string | null;
+  estandar_0312_id: string | null;
+  estado: "pendiente" | "cargado" | "validado" | "aprobado" | "vigente";
+  fecha_solicitud: string | null;
+  fecha_recepcion: string | null;
+  intentos_solicitud: number;
+  proximo_recordatorio: string | null;
+  created_at: string;
+  updated_at: string;
+  empresas_cliente?: { razon_social: string } | null;
+};
+
+const estadoBadge: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+  pendiente: { label: "Pendiente", variant: "secondary" },
+  cargado: { label: "Cargado", variant: "default" },
+  validado: { label: "Validado", variant: "secondary", className: "bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-200" },
+  aprobado: { label: "Aprobado", variant: "default", className: "bg-green-100 text-green-800 hover:bg-green-100 border-green-200" },
+  vigente: { label: "Vigente", variant: "outline" },
+};
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
+
+export default function Documents() {
+  const { user } = useAuth();
+
+  /* Data state */
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  /* Filters */
+  const [filterEmpresa, setFilterEmpresa] = useState("todas");
+  const [filterTipo, setFilterTipo] = useState("todos");
+
+  /* Upload dialog */
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadEmpresa, setUploadEmpresa] = useState("");
+  const [uploadTipo, setUploadTipo] = useState<string>("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  /* Delete confirmation */
+  const [deleteTarget, setDeleteTarget] = useState<Documento | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  /* ---------------------------------------------------------------- */
+  /*  Load empresas                                                    */
+  /* ---------------------------------------------------------------- */
+
+  useEffect(() => {
+    const load = async () => {
+      if (user?.role === "admin" || user?.role === "consultor") {
+        const { data } = await supabase
+          .from("empresas_cliente")
+          .select("*")
+          .order("razon_social");
+        if (data) setEmpresas(data as unknown as Empresa[]);
+      } else if (user?.empresa_id) {
+        setFilterEmpresa(user.empresa_id);
+        setUploadEmpresa(user.empresa_id);
+      }
+    };
+    load();
+  }, [user]);
+
+  /* ---------------------------------------------------------------- */
+  /*  Load documents                                                   */
+  /* ---------------------------------------------------------------- */
+
+  const fetchDocuments = async () => {
+    setLoading(true);
+    let query = supabase
+      .from("documentos")
+      .select("*, empresas_cliente(razon_social)")
+      .order("created_at", { ascending: false });
+
+    if (filterEmpresa && filterEmpresa !== "todas") {
+      query = query.eq("empresa_id", filterEmpresa);
+    }
+    if (filterTipo && filterTipo !== "todos") {
+      query = query.eq("tipo", filterTipo);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      toast.error("Error al cargar documentos");
+      console.error(error);
+    }
+    setDocumentos((data as Documento[]) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterEmpresa, filterTipo]);
+
+  /* ---------------------------------------------------------------- */
+  /*  KPI calculations                                                 */
+  /* ---------------------------------------------------------------- */
+
+  const totalDocs = documentos.length;
+  const loadedDocs = documentos.filter((d) => d.estado === "cargado" || d.estado === "validado" || d.estado === "aprobado" || d.estado === "vigente").length;
+  const pendingDocs = documentos.filter((d) => d.estado === "pendiente").length;
+
+  const categoryBreakdown = DOCUMENT_TYPES.reduce<Record<string, number>>((acc, tipo) => {
+    acc[tipo.label] = documentos.filter((d) => d.tipo === tipo.value).length;
+    return acc;
+  }, {});
+
+  const topCategories = Object.entries(categoryBreakdown)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  /* ---------------------------------------------------------------- */
+  /*  Upload handler                                                   */
+  /* ---------------------------------------------------------------- */
+
+  const handleUpload = async () => {
+    if (!uploadEmpresa) { toast.error("Selecciona una empresa"); return; }
+    if (!uploadTipo) { toast.error("Selecciona un tipo de documento"); return; }
+    if (!uploadFile) { toast.error("Selecciona un archivo"); return; }
+
+    setUploading(true);
+    try {
+      /* 1. Upload to storage */
+      const safeName = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `${uploadEmpresa}/${uploadTipo.replace(/\s+/g, "_")}_${Date.now()}_${safeName}`;
+
+      const { error: storageError } = await supabase.storage
+        .from("documentos")
+        .upload(storagePath, uploadFile, { upsert: false });
+
+      if (storageError) throw storageError;
+
+      /* 2. Get public URL */
+      const { data: urlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(storagePath);
+
+      const publicUrl = urlData?.publicUrl ?? null;
+
+      /* 3. Insert DB row */
+      const { error: dbError } = await supabase.from("documentos").insert({
+        empresa_id: uploadEmpresa,
+        tipo: uploadTipo,
+        nombre_archivo: uploadFile.name,
+        archivo_url: publicUrl,
+        estado: "cargado",
+        fecha_recepcion: new Date().toISOString(),
+      });
+
+      if (dbError) throw dbError;
+
+      /* 4. Log activity */
+      await logsService.log({
+        tipo: "carga_archivo",
+        modulo: "documentos",
+        descripcion: `Documento "${tipoLabel(uploadTipo)}" cargado: ${uploadFile.name}`,
+        empresa_id: uploadEmpresa,
+        usuario_id: user?.id,
+        metadata: { tipo: uploadTipo, filename: uploadFile.name },
+      });
+
+      /* 5. Refresh & close */
+      await fetchDocuments();
+      setUploadOpen(false);
+      resetUploadForm();
+      toast.success("Documento cargado exitosamente");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message ?? "Error al cargar el documento");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetUploadForm = () => {
+    setUploadFile(null);
+    setUploadTipo("");
+    if (user?.role === "admin" || user?.role === "consultor") {
+      setUploadEmpresa("");
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  Delete handler                                                   */
+  /* ---------------------------------------------------------------- */
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      /* Remove from storage if URL exists */
+      if (deleteTarget.archivo_url) {
+        const urlObj = new URL(deleteTarget.archivo_url);
+        const pathParts = urlObj.pathname.split("/storage/v1/object/public/documentos/");
+        const storagePath = pathParts[1] ? decodeURIComponent(pathParts[1]) : null;
+        if (storagePath) {
+          await supabase.storage.from("documentos").remove([storagePath]);
+        }
+      }
+
+      /* Remove DB row */
+      const { error } = await supabase
+        .from("documentos")
+        .delete()
+        .eq("id", deleteTarget.id);
+
+      if (error) throw error;
+
+      /* Log activity */
+      await logsService.log({
+        tipo: "eliminacion",
+        modulo: "documentos",
+        descripcion: `Documento eliminado: ${deleteTarget.nombre_archivo} (${deleteTarget.tipo})`,
+        empresa_id: deleteTarget.empresa_id,
+        usuario_id: user?.id,
+        metadata: { tipo: deleteTarget.tipo, filename: deleteTarget.nombre_archivo },
+      });
+
+      await fetchDocuments();
+      toast.success("Documento eliminado");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message ?? "Error al eliminar el documento");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  Validar / Aprobar handlers                                       */
+  /* ---------------------------------------------------------------- */
+
+  const handleValidar = async (doc: Documento) => {
+    try {
+      const { error } = await supabase
+        .from("documentos")
+        .update({
+          estado: "validado",
+          validado_por: user?.id ?? null,
+          fecha_validacion: new Date().toISOString(),
+        })
+        .eq("id", doc.id);
+      if (error) throw error;
+      await logsService.log({
+        tipo: "validacion",
+        modulo: "documentos",
+        descripcion: `Documento validado: ${doc.nombre_archivo} (${doc.tipo})`,
+        empresa_id: doc.empresa_id,
+        usuario_id: user?.id,
+      });
+      await fetchDocuments();
+      toast.success("Documento validado correctamente");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message ?? "Error al validar el documento");
+    }
+  };
+
+  const handleAprobar = async (doc: Documento) => {
+    try {
+      const { error } = await supabase
+        .from("documentos")
+        .update({
+          estado: "aprobado",
+          aprobado_por: user?.id ?? null,
+          fecha_aprobacion: new Date().toISOString(),
+        })
+        .eq("id", doc.id);
+      if (error) throw error;
+      await logsService.log({
+        tipo: "aprobacion",
+        modulo: "documentos",
+        descripcion: `Documento aprobado: ${doc.nombre_archivo} (${doc.tipo}) — puntos de cumplimiento otorgados`,
+        empresa_id: doc.empresa_id,
+        usuario_id: user?.id,
+      });
+      await fetchDocuments();
+      toast.success("Documento aprobado correctamente");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message ?? "Error al aprobar el documento");
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  Helpers                                                          */
+  /* ---------------------------------------------------------------- */
+
+  const empresaName = (doc: Documento) =>
+    doc.empresas_cliente?.razon_social ?? "—";
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  Render                                                           */
+  /* ---------------------------------------------------------------- */
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Documentos SG-SST</h1>
+          <p className="text-muted-foreground">
+            Gestión documental del Sistema de Gestión de Seguridad y Salud en el Trabajo
+          </p>
+        </div>
+
+        <Dialog open={uploadOpen} onOpenChange={(open) => { setUploadOpen(open); if (!open) resetUploadForm(); }}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> Cargar documento
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Cargar documento</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2">
+              {/* Company select */}
+              {(user?.role === "admin" || user?.role === "consultor") && (
+                <div className="space-y-2">
+                  <Label>Empresa</Label>
+                  <Select value={uploadEmpresa} onValueChange={setUploadEmpresa}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresas.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.razon_social}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Document type */}
+              <div className="space-y-2">
+                <Label>Tipo de documento</Label>
+                <Select value={uploadTipo} onValueChange={setUploadTipo}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOCUMENT_TYPES.map((tipo) => (
+                      <SelectItem key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* File dropzone */}
+              <div className="space-y-2">
+                <Label>Archivo</Label>
+                {uploadFile ? (
+                  <div className="flex items-center gap-3 rounded-lg border p-3">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <span className="text-sm flex-1 truncate">{uploadFile.name}</span>
+                    <Button variant="ghost" size="sm" onClick={() => setUploadFile(null)}>
+                      Cambiar
+                    </Button>
+                  </div>
+                ) : (
+                  <FileDropzone
+                    onFiles={(files) => setUploadFile(files[0] ?? null)}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
+                    hint="PDF, Word, Excel, imagen o ZIP — máx. 25MB"
+                  />
+                )}
+              </div>
+
+              {/* Upload button */}
+              <Button
+                className="w-full"
+                onClick={handleUpload}
+                disabled={uploading || !uploadEmpresa || !uploadTipo || !uploadFile}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" /> Cargar documento
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total documentos</CardTitle>
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalDocs}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Cargados / Vigentes</CardTitle>
+            <FileText className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{loadedDocs}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+            <Upload className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">{pendingDocs}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Por categoría</CardTitle>
+            <Filter className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {topCategories.length > 0 ? (
+              <div className="space-y-1">
+                {topCategories.map(([tipo, count]) => (
+                  <div key={tipo} className="flex justify-between text-sm">
+                    <span className="truncate text-muted-foreground">{tipo}</span>
+                    <span className="font-medium">{count}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin documentos</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex gap-4 flex-wrap">
+        {(user?.role === "admin" || user?.role === "consultor") && (
+          <Select value={filterEmpresa} onValueChange={setFilterEmpresa}>
+            <SelectTrigger className="w-[260px]">
+              <Building2 className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Todas las empresas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las empresas</SelectItem>
+              {empresas.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.razon_social}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <Select value={filterTipo} onValueChange={setFilterTipo}>
+          <SelectTrigger className="w-[220px]">
+            <Filter className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Todos los tipos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los tipos</SelectItem>
+            {DOCUMENT_TYPES.map((tipo) => (
+              <SelectItem key={tipo.value} value={tipo.value}>
+                {tipo.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Cargando documentos...</span>
+            </div>
+          ) : documentos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <FolderOpen className="h-12 w-12 text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground font-medium">No se encontraron documentos</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Carga tu primer documento usando el botón superior
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empresa</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Nombre archivo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documentos.map((doc) => {
+                  const badge = estadoBadge[doc.estado] ?? estadoBadge.pendiente;
+                  return (
+                    <TableRow key={doc.id}>
+                      <TableCell className="font-medium">{empresaName(doc)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{tipoLabel(doc.tipo)}</Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[240px] truncate">{doc.nombre_archivo}</TableCell>
+                      <TableCell>
+                        <Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(doc.fecha_recepcion ?? doc.created_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {(user?.role === "admin" || user?.role === "consultor") && doc.estado === "cargado" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Validar documento"
+                              onClick={() => handleValidar(doc)}
+                              className="text-purple-700 hover:text-purple-900 hover:bg-purple-50"
+                            >
+                              <ShieldCheck className="h-4 w-4 mr-1" /> Validar
+                            </Button>
+                          )}
+                          {(user?.role === "admin" || user?.role === "consultor") && doc.estado === "validado" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Aprobar documento"
+                              onClick={() => handleAprobar(doc)}
+                              className="text-green-700 hover:text-green-900 hover:bg-green-50"
+                            >
+                              <BadgeCheck className="h-4 w-4 mr-1" /> Aprobar
+                            </Button>
+                          )}
+                          {doc.archivo_url && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              title="Ver / Descargar"
+                            >
+                              <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
+                                <Eye className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Eliminar"
+                            onClick={() => setDeleteTarget(doc)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar documento</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar{" "}
+              <span className="font-medium">{deleteTarget?.nombre_archivo}</span>? Esta acción no se
+              puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

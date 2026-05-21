@@ -1,4 +1,4 @@
-import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck, Briefcase, UserCog, HardHat, Settings2, History, CalendarDays, FileBarChart, Mail } from "lucide-react";
+import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck, Briefcase, UserCog, HardHat, Settings2, History, CalendarDays, FileBarChart, Mail, FolderOpen, Flame } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -22,7 +22,9 @@ const items = [
   { title: "Matrices de Riesgo", url: "/risk-matrices", icon: ShieldAlert },
   { title: "Comités", url: "/committees", icon: Users },
   { title: "Planes de Emergencia", url: "/emergency-plans", icon: Siren },
+  { title: "Documentos", url: "/documentos", icon: FolderOpen },
   { title: "Cumplimiento 0312", url: "/compliance", icon: ClipboardCheck },
+  { title: "Inventario Equipos", url: "/inventario-equipos", icon: Flame },
   { title: "Calendario", url: "/calendario", icon: CalendarDays },
   { title: "Informe", url: "/informe", icon: FileBarChart },
 ];
