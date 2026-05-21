@@ -310,7 +310,7 @@ export default function MedicalExams() {
                               variant="ghost"
                               size="sm"
                               className="h-7 px-2 text-xs gap-1"
-                              onClick={() => window.open(ex.archivo_url, "_blank")}
+                              onClick={async () => { const { data } = await supabase.storage.from("documentos").createSignedUrl(ex.archivo_url!, 3600); if (data?.signedUrl) window.open(data.signedUrl, "_blank"); }}
                             >
                               <FileText className="h-3.5 w-3.5" /> Ver PDF
                             </Button>
