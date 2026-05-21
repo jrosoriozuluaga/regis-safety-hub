@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ViewModeProvider } from "@/context/ViewModeContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Loader2 } from "lucide-react";
 
@@ -67,15 +68,18 @@ function AppInner() {
                 <Route path="/emergency-plans" element={<EmergencyPlans />} />
                 <Route path="/compliance" element={<Compliance />} />
                 <Route path="/empresas" element={<Companies />} />
-                <Route path="/usuarios" element={<Users />} />
                 <Route path="/trabajadores" element={<Workers />} />
-                <Route path="/configuracion" element={<Settings />} />
-                <Route path="/actividad" element={<ActivityLog />} />
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/informe" element={<CompanyReport />} />
-                <Route path="/plantillas-correo" element={<EmailTemplates />} />
                 <Route path="/documentos" element={<Documents />} />
                 <Route path="/inventario-equipos" element={<EquipmentInventory />} />
+                {/* Admin/Consultor only routes */}
+                <Route element={<AdminRoute />}>
+                  <Route path="/usuarios" element={<Users />} />
+                  <Route path="/configuracion" element={<Settings />} />
+                  <Route path="/actividad" element={<ActivityLog />} />
+                  <Route path="/plantillas-correo" element={<EmailTemplates />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

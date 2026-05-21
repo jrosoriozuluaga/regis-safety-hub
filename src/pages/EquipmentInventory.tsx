@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import type { Empresa } from "@/types/domain";
-import { empresasService, logsService } from "@/services";
+import { empresasService, logsService, configuracionService } from "@/services";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -135,7 +135,7 @@ const EMPTY_FORM: EquipoForm = {
 
 // ── Helpers ────────────────────────────────────────
 
-function computeEstado(equipo: { fecha_vencimiento: string | null; estado: EstadoEquipo }): EstadoEquipo {
+function computeEstado(equipo: { fecha_vencimiento: string | null; estado: EstadoEquipo }, diasAviso = 30): EstadoEquipo {
   if (equipo.estado === "fuera_servicio") return "fuera_servicio";
   if (!equipo.fecha_vencimiento) return equipo.estado;
   const now = new Date();
@@ -144,7 +144,7 @@ function computeEstado(equipo: { fecha_vencimiento: string | null; estado: Estad
   if (venc < now) return "vencido";
   const diffMs = venc.getTime() - now.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  if (diffDays <= 30) return "por_vencer";
+  if (diffDays <= diasAviso) return "por_vencer";
   return "vigente";
 }
 
@@ -171,6 +171,7 @@ export default function EquipmentInventory() {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [diasAviso, setDiasAviso] = useState(30);
 
   // Filters
   const [filterEmpresa, setFilterEmpresa] = useState<string>("all");
@@ -191,6 +192,11 @@ export default function EquipmentInventory() {
     } else if (user?.empresa_id) {
       setFilterEmpresa(user.empresa_id);
     }
+    // Load configurable threshold
+    configuracionService.list().then((configs) => {
+      const cfg = configs.find((c) => c.clave === "equipos_dias_aviso_vencimiento");
+      if (cfg?.valor) setDiasAviso(parseInt(cfg.valor) || 30);
+    }).catch(() => {});
   }, [user]);
 
   useEffect(() => {
@@ -219,7 +225,7 @@ export default function EquipmentInventory() {
           ...row,
           empresa_razon_social: row.empresas_cliente?.razon_social,
         };
-        equipo.estado = computeEstado(equipo);
+        equipo.estado = computeEstado(equipo, diasAviso);
         return equipo;
       });
 
@@ -312,7 +318,7 @@ export default function EquipmentInventory() {
       const autoEstado = computeEstado({
         fecha_vencimiento: payload.fecha_vencimiento,
         estado: payload.estado,
-      });
+      }, diasAviso);
       if (payload.estado !== "fuera_servicio") {
         payload.estado = autoEstado;
       }

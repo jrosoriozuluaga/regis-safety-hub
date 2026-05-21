@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Settings2, Save, Loader2, Globe, Mail, Calendar, FolderOpen, FileText, RefreshCw } from "lucide-react";
+import { Settings2, Save, Loader2, Globe, Mail, Calendar, FolderOpen, FileText, RefreshCw, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 
 type SettingGroup = {
@@ -43,6 +43,12 @@ const SETTING_GROUPS: SettingGroup[] = [
     keys: ["drive_root_folder"],
   },
   {
+    title: "Inventario de Equipos",
+    description: "Parámetros para alertas de vencimiento de equipos.",
+    icon: ShieldAlert,
+    keys: ["equipos_dias_aviso_vencimiento"],
+  },
+  {
     title: "Normatividad",
     description: "Resolución de estándares mínimos vigente.",
     icon: FileText,
@@ -59,6 +65,7 @@ const SETTING_LABELS: Record<string, string> = {
   email_remitente: "Email remitente",
   drive_root_folder: "ID carpeta raíz en OneDrive/SharePoint",
   resolucion_vigente: "Resolución vigente",
+  equipos_dias_aviso_vencimiento: "Días antes de vencimiento para alerta",
 };
 
 const SETTING_PLACEHOLDERS: Record<string, string> = {
@@ -70,6 +77,7 @@ const SETTING_PLACEHOLDERS: Record<string, string> = {
   email_remitente: "sgsst@regiscolombia.com",
   drive_root_folder: "",
   resolucion_vigente: "0312_2019",
+  equipos_dias_aviso_vencimiento: "30",
 };
 
 export default function SettingsPage() {
