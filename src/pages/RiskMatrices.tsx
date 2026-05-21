@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Wand2, Printer, Plus, Pencil, Save, X, Trash2 } from "lucide-react";
+import { Wand2, Printer, Plus, Pencil, Save, X, Trash2, Upload, CheckCircle2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { empresasService, matricesService, riesgosTipicosService, logsService } from "@/services";
+import { supabase } from "@/lib/supabase";
 import type { Empresa, MatrizRiesgo, RiesgoMatriz } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
 import { getExportHeaderHTML, getExportFooterHTML, injectLogoIntoWindow } from "@/lib/exportHeader";
@@ -105,6 +106,7 @@ export default function RiskMatrices() {
   const [addingNew, setAddingNew] = useState(false);
   const [newDraft, setNewDraft] = useState<ReturnType<typeof emptyRiesgo> | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [uploadingArl, setUploadingArl] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -509,7 +511,12 @@ ${getExportFooterHTML()}
                   className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted/40 transition-colors ${selectedMatriz === m.id ? "border-primary bg-primary/5" : ""}`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">Matriz GTC 45 v{m.version}</div>
+                    <div className="text-sm font-medium truncate flex items-center gap-2">
+                      Matriz GTC 45 v{m.version}
+                      {m.aprobada_por_arl && (
+                        <Badge className="text-[9px] px-1.5 py-0 bg-green-600 shrink-0">ARL</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">{m.empresa_razon_social} — {m.estado}</div>
                   </div>
                 </button>
@@ -624,6 +631,111 @@ ${getExportFooterHTML()}
               </div>
             )}
           </CardContent>
+
+          {/* ARL Approval Section */}
+          {selectedMatriz && (() => {
+            const matrizActual = matrices.find(m => m.id === selectedMatriz);
+            if (!matrizActual) return null;
+            return (
+              <div className="border-t px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <FileText className="h-4 w-4" /> Aprobacion ARL
+                    </h4>
+                    {matrizActual.aprobada_por_arl ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge className="gap-1 bg-green-600 text-[10px]">
+                          <CheckCircle2 className="h-3 w-3" /> Aprobada por ARL
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {matrizActual.fecha_aprobacion_arl
+                            ? new Date(matrizActual.fecha_aprobacion_arl).toLocaleDateString("es-CO")
+                            : ""}
+                        </span>
+                        {matrizActual.archivo_aprobado_url && (
+                          <a
+                            href={matrizActual.archivo_aprobado_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Ver documento
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sube la version aprobada por la ARL para que sume al puntaje de cumplimiento.
+                      </p>
+                    )}
+                  </div>
+                  {!matrizActual.aprobada_por_arl && (
+                    <label className="shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={uploadingArl}
+                        asChild
+                      >
+                        <span>
+                          {uploadingArl ? <span className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                          {uploadingArl ? "Subiendo..." : "Subir aprobacion ARL"}
+                        </span>
+                      </Button>
+                      <input
+                        type="file"
+                        accept=".pdf,.xlsx,.xls"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !selectedMatriz) return;
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error("El archivo excede 10 MB");
+                            return;
+                          }
+                          setUploadingArl(true);
+                          try {
+                            const matrizData = matrices.find(m => m.id === selectedMatriz);
+                            const path = `matrices/${matrizData?.empresa_id}/arl_aprobacion_${Date.now()}.${file.name.split('.').pop()}`;
+                            const { error: upErr } = await supabase.storage.from("documentos").upload(path, file, { upsert: true });
+                            if (upErr) throw upErr;
+                            const { data: urlData } = await supabase.storage.from("documentos").createSignedUrl(path, 31536000);
+                            const { error: dbErr } = await supabase.from("matrices_riesgo").update({
+                              archivo_aprobado_url: urlData?.signedUrl,
+                              aprobada_por_arl: true,
+                              fecha_aprobacion_arl: new Date().toISOString(),
+                            }).eq("id", selectedMatriz);
+                            if (dbErr) throw dbErr;
+
+                            // Reload matrices
+                            const updated = await matricesService.listAll();
+                            setMatrices(updated);
+
+                            await logsService.log({
+                              tipo: "carga_archivo",
+                              modulo: "matrices_riesgo",
+                              descripcion: `Aprobacion ARL subida para Matriz v${matrizData?.version}`,
+                              empresa_id: matrizData?.empresa_id,
+                              usuario_id: user?.id,
+                              metadata: { matriz_id: selectedMatriz, filename: file.name },
+                            });
+                            toast.success("Aprobacion ARL registrada exitosamente");
+                          } catch (err: any) {
+                            toast.error("Error al subir: " + (err.message || "Intente de nuevo"));
+                          } finally {
+                            setUploadingArl(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </Card>
       </div>
     </div>

@@ -109,6 +109,9 @@ export type MatrizRiesgo = {
   fecha_actualizacion?: string;
   documento_url?: string;
   generada_por_ia?: boolean;
+  archivo_aprobado_url?: string;
+  aprobada_por_arl?: boolean;
+  fecha_aprobacion_arl?: string;
   created_at: string;
 };
 
