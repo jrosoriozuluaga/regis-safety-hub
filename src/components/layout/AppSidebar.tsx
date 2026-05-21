@@ -1,4 +1,4 @@
-import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck, Briefcase, UserCog, HardHat, Settings2, History, CalendarDays, FileBarChart, Mail, FolderOpen, Flame } from "lucide-react";
+import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck, Briefcase, UserCog, HardHat, Settings2, History, CalendarDays, FileBarChart, Mail, FolderOpen, Flame, Activity } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -36,6 +36,7 @@ const adminItems = [
   { title: "Configuración", url: "/configuracion", icon: Settings2 },
   { title: "Actividad", url: "/actividad", icon: History },
   { title: "Plantillas Correo", url: "/plantillas-correo", icon: Mail },
+  { title: "Observabilidad", url: "/observabilidad", icon: Activity },
 ];
 
 export function AppSidebar() {

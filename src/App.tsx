@@ -35,6 +35,7 @@ const EquipmentInventory = lazy(() => import("./pages/EquipmentInventory"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UploadPila = lazy(() => import("./pages/UploadPila"));
+const Observability = lazy(() => import("./pages/Observability"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ function AppInner() {
                   <Route path="/configuracion" element={<Settings />} />
                   <Route path="/actividad" element={<ActivityLog />} />
                   <Route path="/plantillas-correo" element={<EmailTemplates />} />
+                  <Route path="/observabilidad" element={<Observability />} />
                 </Route>
               </Route>
             </Route>
