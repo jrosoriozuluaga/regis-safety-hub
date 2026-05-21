@@ -228,11 +228,11 @@ export default function Documents() {
       if (storageError) throw storageError;
 
       /* 2. Get public URL */
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = await supabase.storage
         .from("documentos")
-        .getPublicUrl(storagePath);
+        .createSignedUrl(storagePath, 31536000);
 
-      const publicUrl = urlData?.publicUrl ?? null;
+      const publicUrl = urlData?.signedUrl ?? null;
 
       /* 3. Insert DB row */
       const { error: dbError } = await supabase.from("documentos").insert({

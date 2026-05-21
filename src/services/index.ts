@@ -228,8 +228,8 @@ export const pilaService = {
 
     let archivoUrl: string | undefined;
     if (!uploadError) {
-      const { data: urlData } = supabase.storage.from("documentos").getPublicUrl(filePath);
-      archivoUrl = urlData.publicUrl;
+      const { data: urlData } = await supabase.storage.from("documentos").createSignedUrl(filePath, 31536000);
+      archivoUrl = urlData?.signedUrl;
     }
 
     const now = new Date().toISOString();
