@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive } from "lucide-react";
+import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive, Link2, Copy, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { getExportHeaderHTML, getExportFooterHTML, injectLogoIntoWindow } from "
 import logo from "@/assets/regis-logo.jpeg";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { generateAsistenciaToken } from "./AsistenciaComite";
 
 export default function Committees() {
   const { user } = useAuth();
@@ -36,6 +37,8 @@ export default function Committees() {
   const [tipoReunion, setTipoReunion] = useState<"ordinaria" | "extraordinaria">("ordinaria");
   const [horaInicio, setHoraInicio] = useState(() => new Date().toTimeString().slice(0, 5));
   const [horaFin, setHoraFin] = useState(() => new Date(Date.now() + 3600000).toTimeString().slice(0, 5));
+
+  const [asistenciaLink, setAsistenciaLink] = useState("");
 
   // Quorum calculation
   const presentCount = Object.values(attendance).filter(Boolean).length;
@@ -245,6 +248,80 @@ export default function Committees() {
                 </span>
               )}
             </div>
+
+            {/* Attendance link generator */}
+            {selectedComite && actas.length > 0 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                  <Link2 className="h-4 w-4" />
+                  Link de asistencia digital
+                </div>
+                <p className="text-xs text-blue-700">
+                  Genera un link para que los integrantes confirmen su asistencia desde el celular (WhatsApp, email).
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-blue-700 border-blue-300"
+                    onClick={() => {
+                      const lastActa = actas[0];
+                      if (!lastActa) return;
+                      const empresa = empresas.find(e => e.id === selectedEmpresa);
+                      const token = generateAsistenciaToken(
+                        selectedComite,
+                        lastActa.id,
+                        lastActa.fecha_reunion,
+                        empresa?.razon_social || "Empresa",
+                        tipoComite,
+                        lugar,
+                        horaInicio
+                      );
+                      const url = `${window.location.origin}/asistencia-comite?t=${token}`;
+                      setAsistenciaLink(url);
+                      navigator.clipboard.writeText(url).then(() => {
+                        toast.success("Link de asistencia copiado al portapapeles");
+                      }).catch(() => {
+                        toast.info("Link generado — copialo manualmente");
+                      });
+                      logsService.log({
+                        tipo: "generar",
+                        modulo: "comites",
+                        descripcion: `Link asistencia digital generado para acta #${lastActa.numero_acta}`,
+                        empresa_id: selectedEmpresa || undefined,
+                        usuario_id: user?.id,
+                        metadata: { acta_id: lastActa.id, numero_acta: lastActa.numero_acta, tipo_comite: tipoComite },
+                      });
+                    }}
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Generar link para ultima acta
+                  </Button>
+                </div>
+                {asistenciaLink && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={asistenciaLink}
+                      className="flex-1 text-xs bg-white border rounded px-2 py-1.5 text-slate-600 select-all"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(asistenciaLink);
+                        toast.success("Link copiado");
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -389,7 +466,7 @@ export default function Committees() {
                             metadata: { acta_id: a.id, numero_acta: a.numero_acta },
                           });
                           toast.success("Acta marcada como firmada");
-                          comitesService.listActas(a.comite_id).then(setActas);
+                          comitesService.actas(a.comite_id).then(setActas);
                         }}
                       >
                         <PenLine className="h-3 w-3" /> Firmar
@@ -419,7 +496,7 @@ export default function Committees() {
                             metadata: { acta_id: a.id, numero_acta: a.numero_acta },
                           });
                           toast.success("Acta archivada");
-                          comitesService.listActas(a.comite_id).then(setActas);
+                          comitesService.actas(a.comite_id).then(setActas);
                         }}
                       >
                         <Archive className="h-3 w-3" /> Archivar
