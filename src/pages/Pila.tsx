@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Clock, Send, RefreshCw, Bell, MessageCircle, AlertTriangle, ShieldCheck, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -69,6 +70,7 @@ export default function Pila() {
 
   const isAdmin = user?.role === "admin" || user?.role === "consultor";
   const uploadPeriods = useMemo(() => getUploadPeriods(6), []);
+  const { paginatedItems: pagedRecords, currentPage, totalPages, setCurrentPage, totalItems, pageSize } = usePagination(records, 10);
 
   // Load config on mount
   useEffect(() => {
@@ -350,6 +352,7 @@ export default function Pila() {
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" /> Registros PILA</CardTitle></CardHeader>
         <CardContent className="p-0">
           {records.length > 0 ? (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -363,7 +366,7 @@ export default function Pila() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((r) => {
+                {pagedRecords.map((r) => {
                   const Icon = statusIcon[r.estado] || Clock;
                   const maxAttempts = config?.max_recordatorios ?? 3;
                   const isEscalated = (r.intentos_solicitud || 0) >= maxAttempts;
@@ -489,6 +492,8 @@ export default function Pila() {
                 })}
               </TableBody>
             </Table>
+            <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} pageSize={pageSize} />
+            </>
           ) : (
             <div className="p-8 text-center text-muted-foreground">
               {isAdmin

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -186,6 +187,7 @@ export default function Workers() {
       (w.area || "").toLowerCase().includes(q)
     );
   });
+  const { paginatedItems: pagedWorkers, currentPage: wPage, totalPages: wTotal, setCurrentPage: wSetPage, totalItems: wItems, pageSize: wSize } = usePagination(filtered, 10);
 
   /* ─── single CRUD ─── */
 
@@ -529,7 +531,7 @@ export default function Workers() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filtered.map((w) => (
+                      pagedWorkers.map((w) => (
                         <TableRow key={w.id} className={!w.activo ? "opacity-50" : ""}>
                           <TableCell className="font-medium">{w.nombre}</TableCell>
                           <TableCell className="font-mono text-xs">{w.cedula}</TableCell>
@@ -567,6 +569,7 @@ export default function Workers() {
                     )}
                   </TableBody>
                 </Table>
+                <TablePagination currentPage={wPage} totalPages={wTotal} onPageChange={wSetPage} totalItems={wItems} pageSize={wSize} />
               </div>
             </CardContent>
           </Card>

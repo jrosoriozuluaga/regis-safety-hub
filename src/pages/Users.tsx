@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -129,6 +130,7 @@ export default function Users() {
       (u.razon_social || "").toLowerCase().includes(q)
     );
   });
+  const { paginatedItems: pagedUsers, currentPage: uPage, totalPages: uTotal, setCurrentPage: uSetPage, totalItems: uItems, pageSize: uSize } = usePagination(filtered, 10);
 
   /* ─── single user handlers ─── */
 
@@ -432,7 +434,7 @@ export default function Users() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((u) => (
+                  pagedUsers.map((u) => (
                     <TableRow key={u.id} className={!u.activo ? "opacity-50" : ""}>
                       <TableCell className="font-medium">{u.nombre}</TableCell>
                       <TableCell className="text-sm">{u.email}</TableCell>
@@ -489,6 +491,7 @@ export default function Users() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination currentPage={uPage} totalPages={uTotal} onPageChange={uSetPage} totalItems={uItems} pageSize={uSize} />
           </div>
         </CardContent>
       </Card>

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -260,6 +261,7 @@ export default function Companies() {
       e.ciiu_codigo?.includes(q)
     );
   });
+  const { paginatedItems: pagedFiltered, currentPage: cpPage, totalPages: cpTotal, setCurrentPage: cpSetPage, totalItems: cpItems, pageSize: cpSize } = usePagination(filtered, 10);
 
   /* ─── single CRUD handlers ─── */
 
@@ -625,7 +627,7 @@ export default function Companies() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((e) => (
+                  pagedFiltered.map((e) => (
                     <TableRow key={e.id} className={!e.activo ? "opacity-50" : ""}>
                       <TableCell className="font-medium">{e.razon_social}</TableCell>
                       <TableCell className="font-mono text-xs">{e.nit}</TableCell>
@@ -673,6 +675,7 @@ export default function Companies() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination currentPage={cpPage} totalPages={cpTotal} onPageChange={cpSetPage} totalItems={cpItems} pageSize={cpSize} />
           </div>
         </CardContent>
       </Card>

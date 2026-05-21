@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import type { Empresa } from "@/types/domain";
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 
 const MODULO_ICONS: Record<string, React.ElementType> = {
   pila: FileText,
@@ -117,6 +118,7 @@ export default function ActivityLog() {
       (log.empresa_nombre ?? "").toLowerCase().includes(q)
     );
   });
+  const { paginatedItems: pagedLogs, currentPage: lPage, totalPages: lTotal, setCurrentPage: lSetPage, totalItems: lItems, pageSize: lSize } = usePagination(filtered, 15);
 
   // Get unique modulos from data for filter
   const modulos = [...new Set(logs.map((l) => l.modulo).filter(Boolean))] as string[];
@@ -227,7 +229,7 @@ export default function ActivityLog() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((log) => {
+                  pagedLogs.map((log) => {
                     const Icon = MODULO_ICONS[log.modulo ?? ""] ?? History;
                     return (
                       <TableRow key={log.id}>
@@ -260,6 +262,7 @@ export default function ActivityLog() {
                 )}
               </TableBody>
             </Table>
+            <TablePagination currentPage={lPage} totalPages={lTotal} onPageChange={lSetPage} totalItems={lItems} pageSize={lSize} />
           </div>
         </CardContent>
       </Card>

@@ -54,6 +54,7 @@ import { useAuth } from "@/context/AuthContext";
 import { empresasService, documentsService } from "@/services";
 import type { Empresa } from "@/types/domain";
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -118,6 +119,7 @@ export default function Documents() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [loading, setLoading] = useState(true);
+  const { paginatedItems: pagedDocs, currentPage: dPage, totalPages: dTotal, setCurrentPage: dSetPage, totalItems: dItems, pageSize: dSize } = usePagination(documentos, 10);
 
   /* Filters */
   const [filterEmpresa, setFilterEmpresa] = useState("todas");
@@ -495,6 +497,7 @@ export default function Documents() {
               </p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -507,7 +510,7 @@ export default function Documents() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {documentos.map((doc) => {
+                {pagedDocs.map((doc) => {
                   const badge = estadoBadge[doc.estado] ?? estadoBadge.pendiente;
                   return (
                     <TableRow key={doc.id}>
@@ -571,6 +574,8 @@ export default function Documents() {
                 })}
               </TableBody>
             </Table>
+            <TablePagination currentPage={dPage} totalPages={dTotal} onPageChange={dSetPage} totalItems={dItems} pageSize={dSize} />
+            </>
           )}
         </CardContent>
       </Card>

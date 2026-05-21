@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { Empresa } from "@/types/domain";
 import { empresasService, logsService, configuracionService } from "@/services";
 import { PageHeader } from "@/components/common/PageHeader";
+import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -172,6 +173,8 @@ export default function EquipmentInventory() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [diasAviso, setDiasAviso] = useState(30);
+
+  const { paginatedItems: pagedEquipos, currentPage: eqPage, totalPages: eqTotal, setCurrentPage: eqSetPage, totalItems: eqItems, pageSize: eqSize } = usePagination(equipos, 10);
 
   // Filters
   const [filterEmpresa, setFilterEmpresa] = useState<string>("all");
@@ -540,7 +543,7 @@ export default function EquipmentInventory() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {equipos.map((eq) => (
+                  {pagedEquipos.map((eq) => (
                     <TableRow key={eq.id}>
                       {(user?.role === "admin" || user?.role === "consultor") && (
                         <TableCell className="font-medium">
@@ -585,6 +588,7 @@ export default function EquipmentInventory() {
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination currentPage={eqPage} totalPages={eqTotal} onPageChange={eqSetPage} totalItems={eqItems} pageSize={eqSize} />
             </div>
           )}
         </CardContent>
