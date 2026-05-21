@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Upload, CheckCircle2, AlertCircle, FileSpreadsheet, Shield } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, FileSpreadsheet, Shield, Lock } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -214,9 +214,17 @@ export default function UploadPila() {
                 </div>
               )}
 
-              <p className="text-xs text-center text-muted-foreground">
-                Su archivo sera recibido de forma segura por el equipo de Regis Colombia.
-              </p>
+              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
+                <p className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
+                  <Lock className="h-3 w-3" /> Tratamiento de datos personales
+                </p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Al cargar este documento, usted autoriza el tratamiento de los datos personales
+                  contenidos en el conforme a la Ley 1581 de 2012 y la politica de privacidad de
+                  Regis Colombia SAS. Los datos seran utilizados exclusivamente para la gestion
+                  del Sistema de Seguridad y Salud en el Trabajo (SG-SST) de su empresa.
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
