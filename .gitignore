@@ -27,3 +27,4 @@ dist-ssr
 supabase/.temp/
 docs/node_modules/
 backup_pre_rls_*.sql
+bun.lockb
