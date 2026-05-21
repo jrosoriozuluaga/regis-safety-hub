@@ -124,10 +124,11 @@ export default function Pila() {
 
       const { escalated } = await pilaService.sendReminder(record, empresa, config ?? undefined, user?.id);
 
-      const email = empresa.email_contacto_pila || empresa.email_contacto;
       if (escalated) {
-        toast.warning(`Recordatorio ESCALADO enviado a ${email} — Se superaron los ${maxAttempts} intentos maximos`, { duration: 6000 });
+        const emailRRHH = empresa.email_contacto || empresa.email_contacto_pila;
+        toast.warning(`Escalado a RRHH: recordatorio enviado a ${emailRRHH} (${empresa.cargo_contacto || "Líder RRHH"}) — ${currentAttempts + 1} intentos`, { duration: 6000 });
       } else {
+        const email = empresa.email_contacto_pila || empresa.email_contacto;
         toast.success(`Recordatorio enviado a ${email} (intento ${currentAttempts + 1}/${maxAttempts})`);
       }
       loadRecords();
@@ -382,11 +383,20 @@ export default function Pila() {
                       </TableCell>
                       <TableCell>
                         {r.intentos_solicitud ? (
-                          <div className="flex items-center gap-1">
-                            <span className={`text-xs tabular-nums ${isEscalated ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
-                              {r.intentos_solicitud}/{maxAttempts}
-                            </span>
-                            {isEscalated && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                          <div className="flex items-center gap-1.5">
+                            {isEscalated ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700">
+                                <AlertTriangle className="h-3 w-3" /> Escalado RRHH
+                              </span>
+                            ) : r.intentos_solicitud >= 2 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-orange-100 text-orange-700">
+                                {r.intentos_solicitud} recordatorios
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700">
+                                {r.intentos_solicitud} recordatorio
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>

@@ -285,8 +285,14 @@ export const pilaService = {
     const intentos = (record.intentos_solicitud || 0) + 1;
     const escalated = intentos > maxRecordatorios;
 
-    const email = empresa.email_contacto_pila || empresa.email_contacto;
-    const nombre = empresa.nombre_contacto_pila || empresa.nombre_contacto;
+    // When escalated, send to RRHH leader (email_contacto / cargo_contacto)
+    // Normal reminders go to PILA-specific contact
+    const email = escalated
+      ? (empresa.email_contacto || empresa.email_contacto_pila)
+      : (empresa.email_contacto_pila || empresa.email_contacto);
+    const nombre = escalated
+      ? (empresa.nombre_contacto || empresa.nombre_contacto_pila)
+      : (empresa.nombre_contacto_pila || empresa.nombre_contacto);
 
     // Generate public upload link for the client
     const exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
@@ -307,6 +313,7 @@ export const pilaService = {
           estado: record.estado,
           intento: intentos,
           escalado: escalated,
+          cargo_contacto: escalated ? (empresa.cargo_contacto || "Líder RRHH") : undefined,
           upload_link: uploadLink,
         }),
       });
@@ -321,6 +328,8 @@ export const pilaService = {
           periodo: record.periodo,
           estado: record.estado,
           intento: intentos,
+          escalado: escalated,
+          cargo_contacto: escalated ? (empresa.cargo_contacto || "Líder RRHH") : undefined,
           upload_link: uploadLink,
         },
       });
