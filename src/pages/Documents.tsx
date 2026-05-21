@@ -5,7 +5,6 @@ import {
   FileText,
   Building2,
   Trash2,
-  Download,
   Plus,
   FolderOpen,
   Eye,
@@ -52,8 +51,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/common/FileDropzone";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
-import { logsService } from "@/services";
+import { empresasService, documentsService } from "@/services";
 import type { Empresa } from "@/types/domain";
 import { PageHeader } from "@/components/common/PageHeader";
 
@@ -143,11 +141,8 @@ export default function Documents() {
   useEffect(() => {
     const load = async () => {
       if (user?.role === "admin" || user?.role === "consultor") {
-        const { data } = await supabase
-          .from("empresas_cliente")
-          .select("*")
-          .order("razon_social");
-        if (data) setEmpresas(data as unknown as Empresa[]);
+        const data = await empresasService.list();
+        setEmpresas(data);
       } else if (user?.empresa_id) {
         setFilterEmpresa(user.empresa_id);
         setUploadEmpresa(user.empresa_id);
@@ -162,25 +157,16 @@ export default function Documents() {
 
   const fetchDocuments = async () => {
     setLoading(true);
-    let query = supabase
-      .from("documentos")
-      .select("*, empresas_cliente(razon_social)")
-      .order("created_at", { ascending: false });
-
-    if (filterEmpresa && filterEmpresa !== "todas") {
-      query = query.eq("empresa_id", filterEmpresa);
-    }
-    if (filterTipo && filterTipo !== "todos") {
-      query = query.eq("tipo", filterTipo);
-    }
-
-    const { data, error } = await query;
-    if (error) {
+    try {
+      const empresaFilter = filterEmpresa && filterEmpresa !== "todas" ? filterEmpresa : undefined;
+      const tipoFilter = filterTipo && filterTipo !== "todos" ? filterTipo : undefined;
+      const data = await documentsService.list(empresaFilter, tipoFilter);
+      setDocumentos(data as Documento[]);
+    } catch {
       toast.error("Error al cargar documentos");
-      console.error(error);
+    } finally {
+      setLoading(false);
     }
-    setDocumentos((data as Documento[]) ?? []);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -217,72 +203,12 @@ export default function Documents() {
 
     setUploading(true);
     try {
-      /* 1. Upload to storage */
-      const safeName = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const storagePath = `${uploadEmpresa}/${uploadTipo.replace(/\s+/g, "_")}_${Date.now()}_${safeName}`;
-
-      const { error: storageError } = await supabase.storage
-        .from("documentos")
-        .upload(storagePath, uploadFile, { upsert: false });
-
-      if (storageError) throw storageError;
-
-      /* 2. Get public URL */
-      const { data: urlData } = await supabase.storage
-        .from("documentos")
-        .createSignedUrl(storagePath, 31536000);
-
-      const publicUrl = urlData?.signedUrl ?? null;
-
-      /* 3. Check for existing document (same empresa + tipo + nombre) */
-      const { data: existingDoc } = await supabase
-        .from("documentos")
-        .select("id")
-        .eq("empresa_id", uploadEmpresa)
-        .eq("tipo", uploadTipo)
-        .eq("nombre_archivo", uploadFile.name)
-        .maybeSingle();
-
-      let isUpdate = false;
-      if (existingDoc) {
-        /* Update existing document */
-        const { error: dbError } = await supabase.from("documentos").update({
-          archivo_url: publicUrl,
-          estado: "cargado",
-          fecha_recepcion: new Date().toISOString(),
-        }).eq("id", existingDoc.id);
-        if (dbError) throw dbError;
-        isUpdate = true;
-      } else {
-        /* Insert new document */
-        const { error: dbError } = await supabase.from("documentos").insert({
-          empresa_id: uploadEmpresa,
-          tipo: uploadTipo,
-          nombre_archivo: uploadFile.name,
-          archivo_url: publicUrl,
-          estado: "cargado",
-          fecha_recepcion: new Date().toISOString(),
-        });
-        if (dbError) throw dbError;
-      }
-
-      /* 4. Log activity */
-      await logsService.log({
-        tipo: isUpdate ? "actualizar" : "carga_archivo",
-        modulo: "documentos",
-        descripcion: `Documento "${tipoLabel(uploadTipo)}" ${isUpdate ? "actualizado" : "cargado"}: ${uploadFile.name}`,
-        empresa_id: uploadEmpresa,
-        usuario_id: user?.id,
-        metadata: { tipo: uploadTipo, filename: uploadFile.name, updated: isUpdate },
-      });
-
-      /* 5. Refresh & close */
+      const { updated } = await documentsService.upload(uploadFile, uploadEmpresa, uploadTipo, user?.id);
       await fetchDocuments();
       setUploadOpen(false);
       resetUploadForm();
-      toast.success(isUpdate ? "Documento actualizado (ya existía uno con el mismo nombre y tipo)" : "Documento cargado exitosamente");
+      toast.success(updated ? "Documento actualizado (ya existía uno con el mismo nombre y tipo)" : "Documento cargado exitosamente");
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message ?? "Error al cargar el documento");
     } finally {
       setUploading(false);
@@ -305,38 +231,17 @@ export default function Documents() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      /* Remove from storage if URL exists */
-      if (deleteTarget.archivo_url) {
-        const urlObj = new URL(deleteTarget.archivo_url);
-        const pathParts = urlObj.pathname.split("/storage/v1/object/public/documentos/");
-        const storagePath = pathParts[1] ? decodeURIComponent(pathParts[1]) : null;
-        if (storagePath) {
-          await supabase.storage.from("documentos").remove([storagePath]);
-        }
-      }
-
-      /* Remove DB row */
-      const { error } = await supabase
-        .from("documentos")
-        .delete()
-        .eq("id", deleteTarget.id);
-
-      if (error) throw error;
-
-      /* Log activity */
-      await logsService.log({
-        tipo: "eliminacion",
-        modulo: "documentos",
-        descripcion: `Documento eliminado: ${deleteTarget.nombre_archivo} (${deleteTarget.tipo})`,
-        empresa_id: deleteTarget.empresa_id,
-        usuario_id: user?.id,
-        metadata: { tipo: deleteTarget.tipo, filename: deleteTarget.nombre_archivo },
-      });
-
+      await documentsService.delete(
+        deleteTarget.id,
+        deleteTarget.archivo_url ?? undefined,
+        user?.id,
+        deleteTarget.empresa_id,
+        deleteTarget.nombre_archivo,
+        deleteTarget.tipo,
+      );
       await fetchDocuments();
       toast.success("Documento eliminado");
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message ?? "Error al eliminar el documento");
     } finally {
       setDeleting(false);
@@ -350,52 +255,20 @@ export default function Documents() {
 
   const handleValidar = async (doc: Documento) => {
     try {
-      const { error } = await supabase
-        .from("documentos")
-        .update({
-          estado: "validado",
-          validado_por: user?.id ?? null,
-          fecha_validacion: new Date().toISOString(),
-        })
-        .eq("id", doc.id);
-      if (error) throw error;
-      await logsService.log({
-        tipo: "validacion",
-        modulo: "documentos",
-        descripcion: `Documento validado: ${doc.nombre_archivo} (${doc.tipo})`,
-        empresa_id: doc.empresa_id,
-        usuario_id: user?.id,
-      });
+      await documentsService.validate(doc.id, user?.id, doc.empresa_id, doc.nombre_archivo, doc.tipo);
       await fetchDocuments();
       toast.success("Documento validado correctamente");
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message ?? "Error al validar el documento");
     }
   };
 
   const handleAprobar = async (doc: Documento) => {
     try {
-      const { error } = await supabase
-        .from("documentos")
-        .update({
-          estado: "aprobado",
-          aprobado_por: user?.id ?? null,
-          fecha_aprobacion: new Date().toISOString(),
-        })
-        .eq("id", doc.id);
-      if (error) throw error;
-      await logsService.log({
-        tipo: "aprobacion",
-        modulo: "documentos",
-        descripcion: `Documento aprobado: ${doc.nombre_archivo} (${doc.tipo}) — puntos de cumplimiento otorgados`,
-        empresa_id: doc.empresa_id,
-        usuario_id: user?.id,
-      });
+      await documentsService.approve(doc.id, user?.id, doc.empresa_id, doc.nombre_archivo, doc.tipo);
       await fetchDocuments();
       toast.success("Documento aprobado correctamente");
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message ?? "Error al aprobar el documento");
     }
   };

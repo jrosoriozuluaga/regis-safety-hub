@@ -604,6 +604,133 @@ export const emergenciasService = {
   },
 };
 
+export const documentsService = {
+  list: async (empresaId?: string, tipo?: string): Promise<any[]> => {
+    let query = supabase
+      .from("documentos")
+      .select("*, empresas_cliente(razon_social)")
+      .order("created_at", { ascending: false });
+    if (empresaId && empresaId !== "all") query = query.eq("empresa_id", empresaId);
+    if (tipo) query = query.eq("tipo", tipo);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map((d: any) => ({
+      ...d,
+      empresa_razon_social: d.empresas_cliente?.razon_social,
+    }));
+  },
+
+  upload: async (file: File, empresaId: string, tipo: string, userId?: string): Promise<{ updated: boolean }> => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `${empresaId}/${tipo.replace(/\s+/g, "_")}_${Date.now()}_${safeName}`;
+
+    const { error: storageError } = await supabase.storage
+      .from("documentos")
+      .upload(storagePath, file, { upsert: false });
+    if (storageError) throw storageError;
+
+    const { data: urlData } = await supabase.storage
+      .from("documentos")
+      .createSignedUrl(storagePath, 31536000);
+    const publicUrl = urlData?.signedUrl ?? null;
+
+    // Check for existing document (same empresa + tipo + nombre)
+    const { data: existingDoc } = await supabase
+      .from("documentos")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("tipo", tipo)
+      .eq("nombre_archivo", file.name)
+      .maybeSingle();
+
+    const isUpdate = !!existingDoc;
+    if (existingDoc) {
+      const { error } = await supabase.from("documentos").update({
+        archivo_url: publicUrl,
+        estado: "cargado",
+        fecha_recepcion: new Date().toISOString(),
+      }).eq("id", existingDoc.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("documentos").insert({
+        empresa_id: empresaId,
+        tipo,
+        nombre_archivo: file.name,
+        archivo_url: publicUrl,
+        estado: "cargado",
+        fecha_recepcion: new Date().toISOString(),
+      });
+      if (error) throw error;
+    }
+
+    await logsService.log({
+      tipo: isUpdate ? "actualizar" : "carga_archivo",
+      modulo: "documentos",
+      descripcion: `Documento "${tipo}" ${isUpdate ? "actualizado" : "cargado"}: ${file.name}`,
+      empresa_id: empresaId,
+      usuario_id: userId,
+      metadata: { tipo, filename: file.name, updated: isUpdate },
+    });
+    return { updated: isUpdate };
+  },
+
+  validate: async (docId: string, userId?: string, empresaId?: string, filename?: string, tipo?: string): Promise<void> => {
+    const { error } = await supabase.from("documentos").update({
+      estado: "validado",
+      validado_por: userId ?? null,
+      fecha_validacion: new Date().toISOString(),
+    }).eq("id", docId);
+    if (error) throw error;
+    await logsService.log({
+      tipo: "validacion",
+      modulo: "documentos",
+      descripcion: `Documento validado: ${filename || ""} (${tipo || ""})`,
+      empresa_id: empresaId,
+      usuario_id: userId,
+    });
+  },
+
+  approve: async (docId: string, userId?: string, empresaId?: string, filename?: string, tipo?: string): Promise<void> => {
+    const { error } = await supabase.from("documentos").update({
+      estado: "aprobado",
+      aprobado_por: userId ?? null,
+      fecha_aprobacion: new Date().toISOString(),
+    }).eq("id", docId);
+    if (error) throw error;
+    await logsService.log({
+      tipo: "aprobacion",
+      modulo: "documentos",
+      descripcion: `Documento aprobado: ${filename || ""} (${tipo || ""})`,
+      empresa_id: empresaId,
+      usuario_id: userId,
+    });
+  },
+
+  delete: async (docId: string, archivoUrl?: string, userId?: string, empresaId?: string, filename?: string, tipo?: string): Promise<void> => {
+    // Remove from storage if URL exists
+    if (archivoUrl) {
+      try {
+        const urlObj = new URL(archivoUrl);
+        const pathParts = urlObj.pathname.split("/storage/v1/object/public/documentos/");
+        const storagePath = pathParts[1] ? decodeURIComponent(pathParts[1]) : null;
+        if (storagePath) {
+          await supabase.storage.from("documentos").remove([storagePath]);
+        }
+      } catch { /* ignore storage cleanup errors */ }
+    }
+    const { error } = await supabase.from("documentos").delete().eq("id", docId);
+    if (error) throw error;
+    await logsService.log({
+      tipo: "eliminacion",
+      modulo: "documentos",
+      descripcion: `Documento eliminado: ${filename || ""} (${tipo || ""})`,
+      empresa_id: empresaId,
+      usuario_id: userId,
+      metadata: { tipo, filename },
+    });
+  },
+};
+
 export const trabajadoresService = {
   listByEmpresa: async (empresaId: string): Promise<Trabajador[]> => {
     const { data, error } = await supabase
