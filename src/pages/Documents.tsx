@@ -55,6 +55,7 @@ import { empresasService, documentsService } from "@/services";
 import type { Empresa } from "@/types/domain";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TablePagination, usePagination } from "@/components/common/TablePagination";
+import { TableSkeleton } from "@/components/common/Skeletons";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -484,10 +485,7 @@ export default function Documents() {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Cargando documentos...</span>
-            </div>
+            <TableSkeleton columns={6} rows={5} />
           ) : documentos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <FolderOpen className="h-12 w-12 text-muted-foreground/50 mb-3" />

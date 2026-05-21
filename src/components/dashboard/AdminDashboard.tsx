@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { empresasService, cumplimientoService, alertsService, pilaService } from "@/services";
 import type { AlertItem } from "@/services";
 import { OnboardingChecklist } from "@/components/common/OnboardingChecklist";
+import { PageSkeleton } from "@/components/common/Skeletons";
 import { supabase } from "@/lib/supabase";
 import type { Empresa, PilaRecord } from "@/types/domain";
 
@@ -144,27 +145,32 @@ export function AdminDashboard() {
   const [complianceData, setComplianceData] = useState<{ name: string; score: number }[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [pilaStats, setPilaStats] = useState<{ total: number; aprobadas: number; pendientes: number; vencidas: number; pct: number } | null>(null);
+  const [dashLoading, setDashLoading] = useState(true);
 
   useEffect(() => {
-    empresasService.list().then(setEmpresas);
-    empresasService.compliance().then((rows) => {
-      if (rows.length > 0) {
-        const avg = Math.round(rows.reduce((s, r) => s + r.puntaje_total, 0) / rows.length);
-        setAvgCompliance(avg);
-        setComplianceData(rows.map((r) => ({
-          name: r.empresa?.razon_social?.split(" ").slice(0, 2).join(" ") || "Empresa",
-          score: r.puntaje_total,
-        })));
-      }
-    });
-    alertsService.getAlerts().then((a) => setAlerts(a.slice(0, 8)));
-    pilaService.listRecords().then((records) => {
-      const stats = pilaService.getStats(records);
-      setPilaStats(stats);
-    });
+    Promise.all([
+      empresasService.list().then(setEmpresas),
+      empresasService.compliance().then((rows) => {
+        if (rows.length > 0) {
+          const avg = Math.round(rows.reduce((s, r) => s + r.puntaje_total, 0) / rows.length);
+          setAvgCompliance(avg);
+          setComplianceData(rows.map((r) => ({
+            name: r.empresa?.razon_social?.split(" ").slice(0, 2).join(" ") || "Empresa",
+            score: r.puntaje_total,
+          })));
+        }
+      }),
+      alertsService.getAlerts().then((a) => setAlerts(a.slice(0, 8))),
+      pilaService.listRecords().then((records) => {
+        const stats = pilaService.getStats(records);
+        setPilaStats(stats);
+      }),
+    ]).finally(() => setDashLoading(false));
   }, []);
 
   const totalWorkers = empresas.reduce((s, e) => s + e.num_trabajadores, 0);
+
+  if (dashLoading) return <PageSkeleton kpis={4} columns={4} rows={5} />;
 
   return (
     <div className="space-y-6">
