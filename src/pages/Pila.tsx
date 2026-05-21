@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Clock, Send, Refres
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TablePagination, usePagination } from "@/components/common/TablePagination";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -495,11 +496,13 @@ export default function Pila() {
             <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} pageSize={pageSize} />
             </>
           ) : (
-            <div className="p-8 text-center text-muted-foreground">
-              {isAdmin
-                ? 'Haz clic en "Sincronizar periodos" para generar los registros automaticamente.'
-                : 'No hay registros PILA. Usa el boton "Cargar PILA" para empezar.'}
-            </div>
+            <EmptyState
+              icon={FileSpreadsheet}
+              title="Sin registros PILA"
+              description={isAdmin
+                ? 'Haz clic en "Sincronizar periodos" para generar los registros automáticamente.'
+                : 'No hay registros PILA. Usa el botón "Cargar PILA" para empezar.'}
+            />
           )}
         </CardContent>
       </Card>

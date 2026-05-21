@@ -57,6 +57,7 @@ import type { Empresa } from "@/types/domain";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { TableSkeleton } from "@/components/common/Skeletons";
+import { EmptyState } from "@/components/common/EmptyState";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -488,13 +489,11 @@ export default function Documents() {
           {loading ? (
             <TableSkeleton columns={6} rows={5} />
           ) : documentos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <FolderOpen className="h-12 w-12 text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground font-medium">No se encontraron documentos</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Carga tu primer documento usando el botón superior
-              </p>
-            </div>
+            <EmptyState
+              icon={FolderOpen}
+              title="Sin documentos"
+              description="Carga tu primer documento usando el botón superior."
+            />
           ) : (
             <>
             <Table>

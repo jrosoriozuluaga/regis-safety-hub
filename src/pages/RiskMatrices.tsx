@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Wand2, Printer, Plus, Pencil, Save, X, Trash2, Upload, CheckCircle2, FileText } from "lucide-react";
+import { Wand2, Printer, Plus, Pencil, Save, X, Trash2, Upload, CheckCircle2, FileText, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -522,7 +523,11 @@ ${getExportFooterHTML()}
                 </button>
               ))}
               {matrices.length === 0 && (
-                <p className="text-sm text-muted-foreground">No hay matrices generadas aún.</p>
+                <EmptyState
+                  icon={ShieldAlert}
+                  title="Sin matrices de riesgo"
+                  description="Selecciona una empresa y genera tu primera matriz GTC 45."
+                />
               )}
             </div>
           </CardContent>

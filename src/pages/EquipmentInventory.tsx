@@ -22,6 +22,7 @@ import type { Empresa } from "@/types/domain";
 import { empresasService, logsService, configuracionService } from "@/services";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TablePagination, usePagination } from "@/components/common/TablePagination";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -519,13 +520,13 @@ export default function EquipmentInventory() {
               <span className="ml-2 text-sm text-muted-foreground">Cargando equipos...</span>
             </div>
           ) : equipos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <Package className="h-10 w-10 mb-3 opacity-40" />
-              <p className="text-sm">No hay equipos registrados</p>
-              <Button variant="link" onClick={openAdd} className="mt-1 text-sm">
-                Agregar el primer equipo
-              </Button>
-            </div>
+            <EmptyState
+              icon={Package}
+              title="Sin equipos registrados"
+              description="Agrega el primer equipo para llevar control de vencimientos e inspecciones."
+              actionLabel="Agregar equipo"
+              onAction={openAdd}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
