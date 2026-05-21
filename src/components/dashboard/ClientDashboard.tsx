@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, TrendingUp, FileCheck, Shield, Activity, FileText, AlertTriangle, Clock } from "lucide-react";
+import { CheckCircle2, TrendingUp, FileCheck, Shield, Activity, FileText, AlertTriangle, Clock, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CircularProgress } from "./CircularProgress";
-import { cumplimientoService, pilaService } from "@/services";
-import type { CumplimientoEmpresa, PilaRecord } from "@/types/domain";
+import { cumplimientoService, pilaService, empresasService } from "@/services";
+import type { CumplimientoEmpresa, PilaRecord, Empresa } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EmptyState } from "@/components/common/EmptyState";
 
 const cycleConfig = [
   { key: "puntaje_planear", label: "Planear", icon: FileCheck, color: "text-blue-600 bg-blue-50" },
@@ -15,26 +17,76 @@ const cycleConfig = [
   { key: "puntaje_actuar", label: "Actuar", icon: TrendingUp, color: "text-purple-600 bg-purple-50" },
 ] as const;
 
-export function ClientDashboard() {
+export function ClientDashboard({ isPreview = false }: { isPreview?: boolean }) {
   const { user } = useAuth();
   const [cumplimiento, setCumplimiento] = useState<CumplimientoEmpresa | null>(null);
   const [pilaStats, setPilaStats] = useState<{ total: number; aprobadas: number; pendientes: number; vencidas: number; pct: number } | null>(null);
 
+  // Preview mode: admin selects a company to preview
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>("");
+
   useEffect(() => {
-    if (user?.empresa_id) {
-      cumplimientoService.getLatest(user.empresa_id).then(setCumplimiento);
-      pilaService.listRecords(user.empresa_id).then((records) => {
+    if (isPreview) {
+      empresasService.list().then((list) => {
+        setEmpresas(list.filter((e) => e.activo));
+        if (list.length > 0 && !selectedEmpresaId) setSelectedEmpresaId(list[0].id);
+      });
+    }
+  }, [isPreview]);
+
+  const empresaId = isPreview ? selectedEmpresaId : user?.empresa_id;
+  const empresaName = isPreview ? empresas.find((e) => e.id === selectedEmpresaId)?.razon_social : undefined;
+
+  useEffect(() => {
+    setCumplimiento(null);
+    setPilaStats(null);
+    if (empresaId) {
+      cumplimientoService.getLatest(empresaId).then(setCumplimiento);
+      pilaService.listRecords(empresaId).then((records) => {
         const stats = pilaService.getStats(records);
         setPilaStats(stats);
       });
     }
-  }, [user]);
+  }, [empresaId]);
 
   const score = cumplimiento?.puntaje_total ?? 0;
   const statusText = score >= 86 ? "Excelente desempeño" : score >= 60 ? "Moderadamente aceptable" : score > 0 ? "Nivel crítico" : "Sin evaluación";
 
+  if (isPreview && !selectedEmpresaId) {
+    return (
+      <EmptyState
+        icon={Building2}
+        title="Vista previa de cliente"
+        description="Cargando empresas..."
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {isPreview && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="py-3 flex items-center gap-4">
+            <Building2 className="h-5 w-5 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800">Vista previa: así ve el cliente su panel</p>
+              <p className="text-xs text-amber-600">Selecciona una empresa para simular su vista</p>
+            </div>
+            <Select value={selectedEmpresaId} onValueChange={setSelectedEmpresaId}>
+              <SelectTrigger className="w-64 bg-white">
+                <SelectValue placeholder="Seleccionar empresa" />
+              </SelectTrigger>
+              <SelectContent>
+                {empresas.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-1">
           <CardHeader><CardTitle className="text-lg">Tu cumplimiento SG-SST</CardTitle></CardHeader>
