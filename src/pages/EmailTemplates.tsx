@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { templatesService, type PlantillaCorreo } from "@/services";
+import { templatesService, logsService, type PlantillaCorreo } from "@/services";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +178,7 @@ export default function EmailTemplates() {
           activo: true,
         });
         setSelectedId(newTemplate.id);
+        logsService.log({ tipo: "crear", modulo: "plantillas", descripcion: `Plantilla creada: "${editNombre}" (${editTipo})` });
         toast({ title: "Plantilla creada", description: `"${editNombre}" guardada correctamente.` });
       } else if (selected) {
         await templatesService.update(selected.id, {
@@ -186,6 +187,7 @@ export default function EmailTemplates() {
           contenido,
           version: (selected.version || 1) + 1,
         });
+        logsService.log({ tipo: "actualizar", modulo: "plantillas", descripcion: `Plantilla actualizada: "${editNombre}" v${(selected.version || 1) + 1}` });
         toast({ title: "Plantilla actualizada", description: `"${editNombre}" v${(selected.version || 1) + 1} guardada.` });
       }
       setEditMode(false);

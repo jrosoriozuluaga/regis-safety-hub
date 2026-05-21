@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { configuracionService, type ConfiguracionSistema } from "@/services";
+import { configuracionService, logsService, type ConfiguracionSistema } from "@/services";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ const SETTING_GROUPS: SettingGroup[] = [
     keys: ["email_remitente"],
   },
   {
-    title: "Google Drive",
+    title: "OneDrive / SharePoint",
     description: "Carpeta raíz para archivado automático de documentos.",
     icon: FolderOpen,
     keys: ["drive_root_folder"],
@@ -56,7 +56,7 @@ const SETTING_LABELS: Record<string, string> = {
   pila_max_recordatorios: "Máx. recordatorios antes de escalar",
   pila_dia_escalamiento: "Día del mes para escalamiento",
   email_remitente: "Email remitente",
-  drive_root_folder: "ID carpeta raíz en Drive",
+  drive_root_folder: "ID carpeta raíz en OneDrive/SharePoint",
   resolucion_vigente: "Resolución vigente",
 };
 
@@ -67,7 +67,7 @@ const SETTING_PLACEHOLDERS: Record<string, string> = {
   pila_max_recordatorios: "3",
   pila_dia_escalamiento: "25",
   email_remitente: "sgsst@regiscolombia.com",
-  drive_root_folder: "ID de Google Drive",
+  drive_root_folder: "",
   resolucion_vigente: "0312_2019",
 };
 
@@ -85,10 +85,16 @@ export default function SettingsPage() {
   const updateMutation = useMutation({
     mutationFn: ({ clave, valor }: { clave: string; valor: string }) =>
       configuracionService.update(clave, valor),
-    onSuccess: (_, { clave }) => {
+    onSuccess: (_, { clave, valor }) => {
       queryClient.invalidateQueries({ queryKey: ["configuracion"] });
       setSavingKeys((prev) => { const n = new Set(prev); n.delete(clave); return n; });
       setEditedValues((prev) => { const n = { ...prev }; delete n[clave]; return n; });
+      logsService.log({
+        tipo: "configurar",
+        modulo: "configuracion",
+        descripcion: `Configuración actualizada: ${SETTING_LABELS[clave] || clave}`,
+        metadata: { clave, valor },
+      });
       toast({ title: "Guardado", description: `Configuración "${SETTING_LABELS[clave] || clave}" actualizada.` });
     },
     onError: (err: any, { clave }) => {

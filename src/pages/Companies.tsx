@@ -49,7 +49,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthContext";
-import { empresasService, usuariosService, type Usuario } from "@/services";
+import { empresasService, usuariosService, logsService, type Usuario } from "@/services";
 import type { Empresa } from "@/types/domain";
 
 /* ─── constants ─── */
@@ -300,9 +300,25 @@ export default function Companies() {
       const payload = { ...rest, consultor_id: form.consultor_id || null };
       if (editingId) {
         await empresasService.update(editingId, payload);
+        await logsService.log({
+          tipo: "actualizar",
+          modulo: "empresas",
+          descripcion: `Empresa actualizada: ${form.razon_social}`,
+          empresa_id: editingId,
+          usuario_id: user?.id,
+          metadata: { nit: form.nit },
+        });
         toast.success("Empresa actualizada");
       } else {
         await empresasService.create({ ...payload, activo: true });
+        await logsService.log({
+          tipo: "crear",
+          modulo: "empresas",
+          descripcion: `Nueva empresa creada: ${form.razon_social}`,
+          empresa_id: undefined,
+          usuario_id: user?.id,
+          metadata: { nit: form.nit, razon_social: form.razon_social },
+        });
         toast.success("Empresa creada exitosamente");
       }
       setDialogOpen(false);
@@ -318,9 +334,25 @@ export default function Companies() {
     try {
       if (empresa.activo) {
         await empresasService.deactivate(empresa.id);
+        await logsService.log({
+          tipo: "actualizar",
+          modulo: "empresas",
+          descripcion: `Empresa desactivada: ${empresa.razon_social}`,
+          empresa_id: empresa.id,
+          usuario_id: user?.id,
+          metadata: { nit: empresa.nit },
+        });
         toast.success(`${empresa.razon_social} desactivada`);
       } else {
         await empresasService.activate(empresa.id);
+        await logsService.log({
+          tipo: "actualizar",
+          modulo: "empresas",
+          descripcion: `Empresa reactivada: ${empresa.razon_social}`,
+          empresa_id: empresa.id,
+          usuario_id: user?.id,
+          metadata: { nit: empresa.nit },
+        });
         toast.success(`${empresa.razon_social} reactivada`);
       }
       loadEmpresas();
@@ -451,6 +483,14 @@ export default function Companies() {
 
     setBulkResult({ created, updated, errors });
     setBulkStep("done");
+    await logsService.log({
+      tipo: "crear",
+      modulo: "empresas",
+      descripcion: `Carga masiva de empresas: ${created} creadas, ${updated} actualizadas, ${errors} errores`,
+      empresa_id: undefined,
+      usuario_id: user?.id,
+      metadata: { created, updated, errors },
+    });
     loadEmpresas();
   };
 

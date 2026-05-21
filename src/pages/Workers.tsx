@@ -36,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthContext";
-import { empresasService, trabajadoresService } from "@/services";
+import { empresasService, trabajadoresService, logsService } from "@/services";
 import type { Empresa, Trabajador } from "@/types/domain";
 
 /* ─── bulk constants ─── */
@@ -225,6 +225,14 @@ export default function Workers() {
           area: form.area || undefined,
           fecha_ingreso: form.fecha_ingreso || undefined,
         });
+        await logsService.log({
+          tipo: "actualizar",
+          modulo: "trabajadores",
+          descripcion: `Trabajador actualizado: ${form.nombre} (CC ${form.cedula})`,
+          empresa_id: selectedEmpresa || undefined,
+          usuario_id: user?.id,
+          metadata: { cedula: form.cedula, cargo: form.cargo },
+        });
         toast.success("Trabajador actualizado");
       } else {
         await trabajadoresService.create({
@@ -235,6 +243,14 @@ export default function Workers() {
           area: form.area || undefined,
           fecha_ingreso: form.fecha_ingreso || undefined,
           activo: true,
+        });
+        await logsService.log({
+          tipo: "crear",
+          modulo: "trabajadores",
+          descripcion: `Nuevo trabajador creado: ${form.nombre} (CC ${form.cedula})`,
+          empresa_id: selectedEmpresa || undefined,
+          usuario_id: user?.id,
+          metadata: { cedula: form.cedula, cargo: form.cargo },
         });
         toast.success("Trabajador creado");
       }
@@ -251,9 +267,25 @@ export default function Workers() {
     try {
       if (w.activo) {
         await trabajadoresService.deactivate(w.id);
+        await logsService.log({
+          tipo: "actualizar",
+          modulo: "trabajadores",
+          descripcion: `Trabajador retirado: ${w.nombre} (CC ${w.cedula})`,
+          empresa_id: selectedEmpresa || undefined,
+          usuario_id: user?.id,
+          metadata: { cedula: w.cedula },
+        });
         toast.success(`${w.nombre} retirado`);
       } else {
         await trabajadoresService.activate(w.id);
+        await logsService.log({
+          tipo: "actualizar",
+          modulo: "trabajadores",
+          descripcion: `Trabajador reactivado: ${w.nombre} (CC ${w.cedula})`,
+          empresa_id: selectedEmpresa || undefined,
+          usuario_id: user?.id,
+          metadata: { cedula: w.cedula },
+        });
         toast.success(`${w.nombre} reactivado`);
       }
       loadWorkers(selectedEmpresa);
@@ -350,6 +382,14 @@ export default function Workers() {
     }
     setBulkResult({ created, updated, errors });
     setBulkStep("done");
+    await logsService.log({
+      tipo: "importar",
+      modulo: "trabajadores",
+      descripcion: `Importación masiva de trabajadores: ${created} creados, ${updated} actualizados, ${errors} errores`,
+      empresa_id: selectedEmpresa || undefined,
+      usuario_id: user?.id,
+      metadata: { created, updated, errors },
+    });
     loadWorkers(selectedEmpresa);
   };
 

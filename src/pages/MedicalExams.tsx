@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { FileDropzone } from "@/components/common/FileDropzone";
 import { useAuth } from "@/context/AuthContext";
-import { empresasService, examenesService } from "@/services";
+import { empresasService, examenesService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
 import type { Empresa, ExamenMedico } from "@/types/domain";
 
@@ -85,6 +85,15 @@ export default function MedicalExams() {
       });
 
       if (error) throw error;
+
+      await logsService.log({
+        tipo: "cargar",
+        modulo: "examenes",
+        descripcion: `PDF de examen médico procesado con IA: ${file.name}`,
+        empresa_id: selectedEmpresa || undefined,
+        usuario_id: user?.id,
+        metadata: { archivo: file.name },
+      });
 
       const extracted = data.extracted;
       setLastExtracted(extracted);

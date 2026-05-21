@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
-import { empresasService, usuariosService } from "@/services";
+import { empresasService, usuariosService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
 import type { Empresa } from "@/types/domain";
 import type { Usuario } from "@/services";
@@ -179,6 +179,7 @@ export default function Users() {
           rol: form.rol,
           empresa_id: form.rol === "cliente" ? form.empresa_id : null,
         });
+        logsService.log({ tipo: "actualizar", modulo: "usuarios", descripcion: `Usuario actualizado: ${form.nombre} (${form.rol})`, usuario_id: user?.id });
         toast.success("Usuario actualizado");
       } else {
         // 1. Create auth user via Supabase admin
@@ -218,6 +219,7 @@ export default function Users() {
             activo: true,
           });
         }
+        logsService.log({ tipo: "crear", modulo: "usuarios", descripcion: `Usuario creado: ${form.nombre} (${form.email}, ${form.rol})`, usuario_id: user?.id });
         toast.success("Usuario creado exitosamente");
       }
       setDialogOpen(false);
@@ -238,9 +240,11 @@ export default function Users() {
     try {
       if (usuario.activo) {
         await usuariosService.deactivate(usuario.id);
+        logsService.log({ tipo: "desactivar", modulo: "usuarios", descripcion: `Usuario desactivado: ${usuario.nombre}`, usuario_id: user?.id });
         toast.success(`${usuario.nombre} desactivado`);
       } else {
         await usuariosService.activate(usuario.id);
+        logsService.log({ tipo: "activar", modulo: "usuarios", descripcion: `Usuario reactivado: ${usuario.nombre}`, usuario_id: user?.id });
         toast.success(`${usuario.nombre} reactivado`);
       }
       loadData();

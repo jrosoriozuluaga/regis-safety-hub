@@ -89,6 +89,7 @@ export default function CalendarPage() {
     let mounted = true;
     async function loadEvents() {
       setLoading(true);
+      try {
       const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
       const endDay = getDaysInMonth(year, month);
       const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${endDay}`;
@@ -171,6 +172,10 @@ export default function CalendarPage() {
       if (mounted) {
         setEvents(allEvents);
         setLoading(false);
+      }
+      } catch (err) {
+        console.error("Error loading calendar events:", err);
+        if (mounted) setLoading(false);
       }
     }
     loadEvents();
