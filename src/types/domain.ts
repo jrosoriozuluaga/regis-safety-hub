@@ -27,9 +27,16 @@ export type Empresa = {
   activo: boolean;
   created_at: string;
   updated_at: string;
+  // PILA-specific contacts
+  email_contacto_pila?: string;
+  nombre_contacto_pila?: string;
+  whatsapp_contacto_pila?: string;
+  drive_folder_id?: string;
+  cargo_contacto?: string;
+  drive_folder_url?: string;
 };
 
-export type PilaStatus = "cargada" | "pendiente" | "vencida";
+export type PilaStatus = "pendiente" | "cargada" | "validada" | "aprobada" | "vencida";
 export type PilaRecord = {
   id: string;
   empresa_id: string;
@@ -42,6 +49,11 @@ export type PilaRecord = {
   fecha_solicitud?: string;
   intentos_solicitud?: number;
   proximo_recordatorio?: string;
+  validado_por?: string;
+  fecha_validacion?: string;
+  aprobado_por?: string;
+  fecha_aprobacion?: string;
+  observacion_validacion?: string;
   created_at: string;
 };
 
@@ -55,6 +67,7 @@ export type Trabajador = {
   fecha_ingreso?: string;
   fecha_egreso?: string;
   activo: boolean;
+  created_at?: string;
 };
 
 export type ExamenMedico = {
@@ -69,6 +82,11 @@ export type ExamenMedico = {
   medico_nombre?: string;
   archivo_url?: string;
   procesado_por_ia?: boolean;
+  confianza_extraccion?: number;
+  revisado_por_consultor?: boolean;
+  consultor_revision_id?: string;
+  texto_extraido_raw?: string;
+  archivo_drive_id?: string;
   created_at: string;
 };
 
@@ -86,7 +104,7 @@ export type MatrizRiesgo = {
   empresa_id: string;
   empresa_razon_social?: string;
   version: number;
-  estado: "borrador" | "aprobada" | "vigente" | "archivada";
+  estado: "borrador" | "aprobada" | "archivada";
   fecha_elaboracion: string;
   fecha_actualizacion?: string;
   documento_url?: string;
@@ -156,10 +174,18 @@ export type ActaComite = {
   tipo_reunion: "ordinaria" | "extraordinaria";
   lugar: string;
   hay_quorum: boolean;
-  estado: "borrador" | "aprobada" | "firmada";
+  estado: "borrador" | "generada" | "firmada" | "archivada";
   contenido_generado?: string;
   generada_por_ia?: boolean;
+  revisada_por_consultor?: boolean;
   documento_url?: string;
+  documento_drive_id?: string;
+  firmada: boolean;
+  fecha_firma?: string;
+  archivada: boolean;
+  fecha_archivado?: string;
+  recordatorios_firma: number;
+  proximo_recordatorio_firma?: string;
   created_at: string;
 };
 

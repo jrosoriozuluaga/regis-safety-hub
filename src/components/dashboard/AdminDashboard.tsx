@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
-import { Building2, TrendingUp, Users, ShieldCheck } from "lucide-react";
+import { Building2, TrendingUp, Users, ShieldCheck, FileText, Loader2, Send, AlertTriangle, Bell, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { empresasService, cumplimientoService } from "@/services";
+import { empresasService, cumplimientoService, alertsService, pilaService } from "@/services";
+import type { AlertItem } from "@/services";
 import { OnboardingChecklist } from "@/components/common/OnboardingChecklist";
-import type { Empresa } from "@/types/domain";
+import { supabase } from "@/lib/supabase";
+import type { Empresa, PilaRecord } from "@/types/domain";
 
 function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: "primary" | "success" }) {
   return (
@@ -24,10 +29,121 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
 }
 
 
+function BitacoraButton() {
+  const [loading, setLoading] = useState(false);
+  const [lastReport, setLastReport] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-bitacora", {
+        body: {},
+      });
+      if (error) throw error;
+      if (data?.full_reports?.length) {
+        const combined = data.full_reports.map((r: any) => r.report).join("\n\n" + "=".repeat(60) + "\n\n");
+        setLastReport(combined);
+        toast.success(`Bitácora generada para ${data.count} empresa(s)`);
+      } else {
+        toast.info("No hay datos para generar la bitácora");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error al generar bitácora");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 w-full">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" onClick={handleGenerate} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+          Generar Bitácora Mensual
+        </Button>
+        {lastReport && (
+          <Button variant="ghost" size="sm" onClick={() => {
+            const printW = window.open("", "_blank");
+            if (!printW) return;
+            printW.document.write(`<html><head><title>Bitácora Mensual</title>
+<style>body{font-family:monospace;white-space:pre-wrap;margin:40px;font-size:12px;line-height:1.5}@media print{@page{margin:20mm}}</style>
+</head><body>${lastReport.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</body></html>`);
+            printW.document.close();
+            setTimeout(() => printW.print(), 300);
+          }}>
+            Imprimir
+          </Button>
+        )}
+      </div>
+      {lastReport && (
+        <pre className="text-xs bg-muted/50 rounded-lg p-4 max-h-[300px] overflow-y-auto whitespace-pre-wrap font-mono">
+          {lastReport}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function WeeklySummaryButton() {
+  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [mode, setMode] = useState<"monday" | "friday">("monday");
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("weekly-summary", {
+        body: { mode },
+      });
+      if (error) throw error;
+      if (data?.summary) {
+        setSummary(data.summary);
+        toast.success(`Resumen semanal (${mode === "monday" ? "pendientes" : "balance"}) generado`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Error al generar resumen");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 w-full">
+      <div className="flex items-center gap-3">
+        <Button variant="outline" onClick={handleGenerate} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          Resumen Semanal
+        </Button>
+        <select
+          className="text-xs border rounded px-2 py-1.5"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "monday" | "friday")}
+        >
+          <option value="monday">Lunes (pendientes)</option>
+          <option value="friday">Viernes (balance)</option>
+        </select>
+      </div>
+      {summary && (
+        <pre className="text-xs bg-muted/50 rounded-lg p-4 max-h-[300px] overflow-y-auto whitespace-pre-wrap font-mono">
+          {summary}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+const SEVERITY_CONFIG = {
+  alta: { color: "bg-red-100 text-red-800 border-red-200", icon: XCircle },
+  media: { color: "bg-amber-100 text-amber-800 border-amber-200", icon: AlertTriangle },
+  baja: { color: "bg-blue-100 text-blue-800 border-blue-200", icon: Clock },
+} as const;
+
 export function AdminDashboard() {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [avgCompliance, setAvgCompliance] = useState(0);
   const [complianceData, setComplianceData] = useState<{ name: string; score: number }[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [pilaStats, setPilaStats] = useState<{ total: number; aprobadas: number; pendientes: number; vencidas: number; pct: number } | null>(null);
 
   useEffect(() => {
     empresasService.list().then(setEmpresas);
@@ -41,6 +157,11 @@ export function AdminDashboard() {
         })));
       }
     });
+    alertsService.getAlerts().then((a) => setAlerts(a.slice(0, 8)));
+    pilaService.listRecords().then((records) => {
+      const stats = pilaService.getStats(records);
+      setPilaStats(stats);
+    });
   }, []);
 
   const totalWorkers = empresas.reduce((s, e) => s + e.num_trabajadores, 0);
@@ -51,7 +172,75 @@ export function AdminDashboard() {
         <Kpi icon={Building2} label="Empresas clientes" value={String(empresas.length)} />
         <Kpi icon={Users} label="Trabajadores cubiertos" value={totalWorkers.toLocaleString("es-CO")} />
         <Kpi icon={TrendingUp} label="Cumplimiento promedio" value={avgCompliance ? `${avgCompliance}%` : "—"} accent="success" />
-        <Kpi icon={ShieldCheck} label="Nivel de riesgo" value={empresas.length ? empresas.map(e => `${e.nivel_riesgo_arl}`).join(", ") : "—"} />
+        <Kpi icon={FileText} label="PILA aprobadas" value={pilaStats ? `${pilaStats.pct}%` : "—"} accent="success" />
+      </div>
+
+      {/* Alerts & PILA Overview */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Bell className="h-4 w-4" /> Alertas activas
+              {alerts.length > 0 && (
+                <Badge variant="destructive" className="ml-auto text-[10px]">
+                  {alerts.length}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {alerts.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <CheckCircle2 className="h-4 w-4 text-green-500" /> Sin alertas pendientes
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                {alerts.map((a) => {
+                  const cfg = SEVERITY_CONFIG[a.severidad];
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={a.id} className={`flex items-start gap-2.5 rounded-lg border p-2.5 text-xs ${cfg.color}`}>
+                      <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium">{a.titulo}</div>
+                        <div className="opacity-75 truncate">{a.descripcion}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {pilaStats && pilaStats.total > 0 && (
+          <Card className="shadow-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4" /> Estado PILA — Todas las empresas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Aprobadas", value: pilaStats.aprobadas, color: "text-green-600" },
+                  { label: "Pendientes", value: pilaStats.pendientes, color: "text-amber-600" },
+                  { label: "Vencidas", value: pilaStats.vencidas, color: "text-red-600" },
+                  { label: "Total", value: pilaStats.total, color: "text-foreground" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="text-center">
+                    <div className={`text-xl font-bold ${color}`}>{value}</div>
+                    <div className="text-[10px] text-muted-foreground">{label}</div>
+                  </div>
+                ))}
+              </div>
+              <Progress value={pilaStats.pct} className="h-2.5" />
+              <p className="text-xs text-muted-foreground mt-1.5 text-center">
+                {pilaStats.pct}% cumplimiento PILA
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {complianceData.length > 0 && (
@@ -92,6 +281,19 @@ export function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Quick Actions */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Acciones rápidas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <BitacoraButton />
+            <WeeklySummaryButton />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-card">
         <CardHeader>

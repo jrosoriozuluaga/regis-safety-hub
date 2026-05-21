@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { empresasService, matricesService, riesgosTipicosService } from "@/services";
+import { empresasService, matricesService, riesgosTipicosService, logsService } from "@/services";
 import type { Empresa, MatrizRiesgo, RiesgoMatriz } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
+import { getExportHeaderHTML, getExportFooterHTML, injectLogoIntoWindow } from "@/lib/exportHeader";
+import logo from "@/assets/regis-logo.jpeg";
 
 function calcNP(nd: number, ne: number) { return nd * ne; }
 function calcNR(nd: number, ne: number, nc: number) { return nd * ne * nc; }
@@ -85,6 +87,14 @@ export default function RiskMatrices() {
             medida_epp: t.medida_tipica_epp,
           }));
           await matricesService.insertRiesgos(newMatriz.id, riesgosToInsert);
+          await logsService.log({
+            tipo: "generar",
+            modulo: "matrices",
+            descripcion: `Matriz de riesgo GTC 45 generada con ${tipicos.length} riesgos para ${empresa.razon_social} (CIIU ${empresa.ciiu_codigo})`,
+            empresa_id: selectedEmpresa || undefined,
+            usuario_id: user?.id,
+            metadata: { matriz_id: newMatriz.id, ciiu: empresa.ciiu_codigo, num_riesgos: tipicos.length },
+          });
           toast.success(`${tipicos.length} riesgos típicos insertados para CIIU ${empresa.ciiu_codigo}`);
         } else {
           toast.info(`No hay riesgos pre-cargados para CIIU ${empresa.ciiu_codigo}`);
@@ -133,9 +143,17 @@ export default function RiskMatrices() {
       </tr>`;
     }).join("");
 
+    const headerHTML = getExportHeaderHTML({
+      title: "Matriz de Identificación de Peligros, Evaluación y Valoración de Riesgos",
+      moduleCode: "MAT-RIE",
+      empresaNombre: empresaInfo?.razon_social || matrizInfo?.empresa_razon_social || "",
+      empresaNit: empresaInfo?.nit,
+      version: String(matrizInfo?.version || 1),
+    });
+
     printWindow.document.write(`<!DOCTYPE html><html><head><title>Matriz GTC 45 — ${empresaInfo?.razon_social || ""}</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; font-size: 10px; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; font-size: 10px; color: #1e293b; max-width: 1200px; margin: 0 auto; padding: 20px; }
   h1 { font-size: 16px; margin-bottom: 4px; }
   h2 { font-size: 13px; color: #555; margin-top: 0; }
   .meta { display: flex; gap: 24px; margin-bottom: 12px; font-size: 11px; color: #333; }
@@ -146,16 +164,13 @@ export default function RiskMatrices() {
   tr:nth-child(even) { background: #f9fafb; }
   .center { text-align: center; }
   .bold { font-weight: 700; }
-  .footer { margin-top: 16px; font-size: 9px; color: #888; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
   @media print { body { margin: 10px; } @page { size: landscape; margin: 10mm; } }
 </style></head><body>
+${headerHTML}
 <h1>Matriz de Identificación de Peligros, Evaluación y Valoración de Riesgos</h1>
 <h2>Metodología GTC 45 — ${empresaInfo?.razon_social || matrizInfo?.empresa_razon_social || ""}</h2>
 <div class="meta">
-  <span><strong>NIT:</strong> ${empresaInfo?.nit || "—"}</span>
   <span><strong>CIIU:</strong> ${empresaInfo?.ciiu_codigo || "—"}</span>
-  <span><strong>Versión:</strong> ${matrizInfo?.version || 1}</span>
-  <span><strong>Fecha:</strong> ${new Date().toLocaleDateString("es-CO")}</span>
   <span><strong>Estado:</strong> ${matrizInfo?.estado || "borrador"}</span>
 </div>
 <table>
@@ -166,11 +181,10 @@ export default function RiskMatrices() {
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
-<div class="footer">
-  Generado por Regis SG-SST — Resolución 0312 de 2019 — ${new Date().toLocaleString("es-CO")}
-</div>
+${getExportFooterHTML()}
 </body></html>`);
     printWindow.document.close();
+    injectLogoIntoWindow(printWindow, logo);
     setTimeout(() => printWindow.print(), 500);
   };
 

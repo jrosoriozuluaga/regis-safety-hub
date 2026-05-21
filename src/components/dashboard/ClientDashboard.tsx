@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, TrendingUp, FileCheck, Shield, Activity } from "lucide-react";
+import { CheckCircle2, TrendingUp, FileCheck, Shield, Activity, FileText, AlertTriangle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CircularProgress } from "./CircularProgress";
-import { cumplimientoService } from "@/services";
-import type { CumplimientoEmpresa } from "@/types/domain";
+import { cumplimientoService, pilaService } from "@/services";
+import type { CumplimientoEmpresa, PilaRecord } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
 
 const cycleConfig = [
@@ -17,10 +18,15 @@ const cycleConfig = [
 export function ClientDashboard() {
   const { user } = useAuth();
   const [cumplimiento, setCumplimiento] = useState<CumplimientoEmpresa | null>(null);
+  const [pilaStats, setPilaStats] = useState<{ total: number; aprobadas: number; pendientes: number; vencidas: number; pct: number } | null>(null);
 
   useEffect(() => {
     if (user?.empresa_id) {
       cumplimientoService.getLatest(user.empresa_id).then(setCumplimiento);
+      pilaService.listRecords(user.empresa_id).then((records) => {
+        const stats = pilaService.getStats(records);
+        setPilaStats(stats);
+      });
     }
   }, [user]);
 
@@ -75,6 +81,42 @@ export function ClientDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* PILA Status for client */}
+      {pilaStats && pilaStats.total > 0 && (
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Estado de Planillas PILA
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6">
+              <div className="flex-1">
+                <Progress value={pilaStats.pct} className="h-3" />
+                <p className="text-xs text-muted-foreground mt-1">{pilaStats.pct}% de planillas aprobadas</p>
+              </div>
+              <div className="flex gap-3">
+                {pilaStats.aprobadas > 0 && (
+                  <Badge variant="outline" className="text-green-700 bg-green-50 border-green-200 gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> {pilaStats.aprobadas} aprobadas
+                  </Badge>
+                )}
+                {pilaStats.pendientes > 0 && (
+                  <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 gap-1">
+                    <Clock className="h-3 w-3" /> {pilaStats.pendientes} pendientes
+                  </Badge>
+                )}
+                {pilaStats.vencidas > 0 && (
+                  <Badge variant="destructive" className="gap-1">
+                    <AlertTriangle className="h-3 w-3" /> {pilaStats.vencidas} vencidas
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

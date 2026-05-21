@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { FileCheck, Save, Loader2 } from "lucide-react";
+import { FileCheck, Save, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,9 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { empresasService, cumplimientoService } from "@/services";
+import { empresasService, cumplimientoService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
 import type { Empresa, CumplimientoEmpresa } from "@/types/domain";
+import { getExportHeaderHTML, getExportFooterHTML, getExportStyles, injectLogoIntoWindow } from "@/lib/exportHeader";
+import logo from "@/assets/regis-logo.jpeg";
 
 type Estandar = {
   id: string;
@@ -48,22 +50,66 @@ export default function Compliance() {
   }, [user]);
 
   useEffect(() => {
-    if (selectedEmpresa) {
-      cumplimientoService.getLatest(selectedEmpresa).then((c) => {
-        setCumplimiento(c);
-        if (c) {
-          supabase.from("items_cumplimiento").select("estandar_id, calificacion")
-            .eq("cumplimiento_id", c.id).then(({ data }) => {
-              if (data) {
-                setCheckedItems(Object.fromEntries(data.map((d: any) => [d.estandar_id, d.calificacion === "cumple"])));
-              }
-            });
-        } else {
-          setCheckedItems({});
+    if (!selectedEmpresa) return;
+
+    async function loadCumplimientoData() {
+      // Load saved compliance items
+      const c = await cumplimientoService.getLatest(selectedEmpresa);
+      setCumplimiento(c);
+
+      let savedChecks: Record<string, boolean> = {};
+      if (c) {
+        const { data } = await supabase.from("items_cumplimiento")
+          .select("estandar_id, calificacion")
+          .eq("cumplimiento_id", c.id);
+        if (data) {
+          savedChecks = Object.fromEntries(data.map((d: any) => [d.estandar_id, d.calificacion === "cumple"]));
+        }
+      }
+
+      // Auto-detect compliance from approved documents + PILA + other modules
+      const [
+        { data: approvedDocs },
+        { data: approvedPilas },
+        { count: examenesCount },
+        { count: matricesCount },
+        { count: actasCopasst },
+        { count: actasConvivencia },
+        { count: planesCount },
+      ] = await Promise.all([
+        supabase.from("documentos").select("tipo").eq("empresa_id", selectedEmpresa).eq("estado", "aprobado"),
+        supabase.from("pila_records").select("id").eq("empresa_id", selectedEmpresa).eq("estado", "aprobada"),
+        supabase.from("examenes_medicos").select("*", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa),
+        supabase.from("matrices_riesgo").select("*", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa),
+        supabase.from("actas_comite").select("*, comites!inner(tipo)", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa).eq("comites.tipo", "copasst"),
+        supabase.from("actas_comite").select("*, comites!inner(tipo)", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa).eq("comites.tipo", "convivencia"),
+        supabase.from("planes_emergencia").select("*", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa),
+      ]);
+
+      // Build set of evidence types that have approved/existing docs
+      const approvedTypes = new Set<string>();
+      if (approvedDocs) approvedDocs.forEach((d: any) => approvedTypes.add(d.tipo));
+      if (approvedPilas && approvedPilas.length > 0) approvedTypes.add("pila");
+      if ((examenesCount ?? 0) > 0) approvedTypes.add("examen_medico");
+      if ((matricesCount ?? 0) > 0) approvedTypes.add("matriz_riesgo");
+      if ((actasCopasst ?? 0) > 0) approvedTypes.add("acta_copasst");
+      if ((actasConvivencia ?? 0) > 0) approvedTypes.add("acta_convivencia");
+      if ((planesCount ?? 0) > 0) approvedTypes.add("plan_emergencias");
+
+      // Auto-check standards that have matching approved evidence
+      const autoChecks: Record<string, boolean> = {};
+      estandares.forEach((e) => {
+        if (e.tipo_documento_evidencia && approvedTypes.has(e.tipo_documento_evidencia)) {
+          autoChecks[e.id] = true;
         }
       });
+
+      // Merge: saved checks take priority, auto-checks fill gaps
+      setCheckedItems({ ...autoChecks, ...savedChecks });
     }
-  }, [selectedEmpresa]);
+
+    loadCumplimientoData();
+  }, [selectedEmpresa, estandares]);
 
   const selectedCapitulo = empresas.find((e) => e.id === selectedEmpresa)?.capitulo_0312 || "";
   const filteredEstandares = estandares.filter((e) => {
@@ -147,6 +193,15 @@ export default function Compliance() {
         await supabase.from("items_cumplimiento").insert(items);
       }
 
+      await logsService.log({
+        tipo: "evaluar",
+        modulo: "cumplimiento",
+        descripcion: `Evaluación 0312 guardada — Puntaje total: ${liveScores.total}% (P:${liveScores.planear}% H:${liveScores.hacer}% V:${liveScores.verificar}% A:${liveScores.actuar}%)`,
+        empresa_id: selectedEmpresa,
+        usuario_id: user?.id,
+        metadata: { puntaje_total: liveScores.total, checkedCount, totalItems: filteredEstandares.length },
+      });
+
       toast.success(`Evaluación guardada — Puntaje: ${liveScores.total}%`);
     } catch (err: any) {
       toast.error(err.message || "Error al guardar");
@@ -156,6 +211,54 @@ export default function Compliance() {
   };
 
   const checkedCount = Object.values(checkedItems).filter(Boolean).length;
+
+  const handlePrint = () => {
+    const empresaInfo = empresas.find((e) => e.id === selectedEmpresa);
+    if (!empresaInfo) return;
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("No se pudo abrir la ventana de impresión"); return; }
+    const headerHTML = getExportHeaderHTML({ logoSrc: logo, module: "EVAL-0312", nit: empresaInfo.nit, empresaNombre: empresaInfo.razon_social });
+    const footerHTML = getExportFooterHTML();
+
+    const scoreRows = [
+      { label: "PLANEAR", val: liveScores.planear },
+      { label: "HACER", val: liveScores.hacer },
+      { label: "VERIFICAR", val: liveScores.verificar },
+      { label: "ACTUAR", val: liveScores.actuar },
+    ].map(s => `<tr><td style="padding:6px 12px">${s.label}</td><td style="padding:6px 12px;text-align:center;font-weight:bold">${s.val}%</td></tr>`).join("");
+
+    const itemRows = filteredEstandares.map(e =>
+      `<tr style="background:${checkedItems[e.id] ? "#f0fdf4" : "#fff"}">
+        <td style="padding:4px 8px;text-align:center">${checkedItems[e.id] ? "✔" : "—"}</td>
+        <td style="padding:4px 8px;font-family:monospace;font-size:10px">${e.item_codigo}</td>
+        <td style="padding:4px 8px;font-size:10px">${e.estandar}</td>
+        <td style="padding:4px 8px;font-size:10px">${e.item_descripcion}</td>
+        <td style="padding:4px 8px;text-align:center">${e.peso_porcentual}%</td>
+      </tr>`
+    ).join("");
+
+    w.document.write(`<html><head><title>Evaluación 0312 — ${empresaInfo.razon_social}</title>${getExportStyles()}</head><body>
+      ${headerHTML}
+      <h2 style="text-align:center;margin:16px 0">Evaluación de Estándares Mínimos — Resolución 0312 de 2019</h2>
+      <p style="text-align:center;font-size:12px;color:#666">Capítulo ${empresaInfo.capitulo_0312} · ${filteredEstandares.length} estándares · ${checkedCount} cumplidos</p>
+      <h3 style="margin-top:20px">Puntajes por Ciclo PHVA</h3>
+      <table style="width:100%;border-collapse:collapse;margin:8px 0" border="1" cellpadding="0" cellspacing="0">
+        <thead><tr style="background:#f1f5f9"><th style="padding:6px 12px;text-align:left">Ciclo</th><th style="padding:6px 12px;text-align:center">Puntaje</th></tr></thead>
+        <tbody>${scoreRows}
+          <tr style="background:#f1f5f9;font-weight:bold"><td style="padding:6px 12px">TOTAL</td><td style="padding:6px 12px;text-align:center">${liveScores.total}%</td></tr>
+        </tbody>
+      </table>
+      <h3 style="margin-top:20px">Detalle de Estándares</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:11px" border="1" cellpadding="0" cellspacing="0">
+        <thead><tr style="background:#f1f5f9"><th style="padding:4px 8px">Cumple</th><th style="padding:4px 8px">Ítem</th><th style="padding:4px 8px">Estándar</th><th style="padding:4px 8px">Descripción</th><th style="padding:4px 8px">Peso</th></tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      ${footerHTML}
+    </body></html>`);
+    w.document.close();
+    injectLogoIntoWindow(w, logo);
+    setTimeout(() => w.print(), 400);
+  };
 
   return (
     <div>
@@ -181,10 +284,15 @@ export default function Compliance() {
               </Select>
             </div>
             {selectedEmpresa && (
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {saving ? "Guardando..." : "Guardar Evaluación"}
-              </Button>
+              <>
+                <Button onClick={handleSave} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? "Guardando..." : "Guardar Evaluación"}
+                </Button>
+                <Button variant="outline" onClick={handlePrint} className="gap-2">
+                  <Printer className="h-4 w-4" /> Imprimir
+                </Button>
+              </>
             )}
           </div>
         )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin } from "lucide-react";
+import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { empresasService, comitesService } from "@/services";
+import { empresasService, comitesService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
 import type { Empresa, Comite, IntegranteComite, ActaComite } from "@/types/domain";
+import { getExportHeaderHTML, getExportFooterHTML, injectLogoIntoWindow } from "@/lib/exportHeader";
+import logo from "@/assets/regis-logo.jpeg";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -134,6 +136,15 @@ export default function Committees() {
       const updatedActas = await comitesService.actas(selectedComite);
       setActas(updatedActas);
 
+      await logsService.log({
+        tipo: "crear",
+        modulo: "comites",
+        descripcion: `Acta #${nextNumero} generada con IA para comité ${tipoComite} (${tipoReunion})`,
+        empresa_id: selectedEmpresa || undefined,
+        usuario_id: user?.id,
+        metadata: { comite_id: selectedComite, numero_acta: nextNumero, tipo_comite: tipoComite, tipo_reunion: tipoReunion },
+      });
+
       toast.success("Acta generada y guardada exitosamente");
       setPoints("");
     } catch (err: any) {
@@ -146,6 +157,18 @@ export default function Committees() {
   return (
     <div className="space-y-6">
       <PageHeader title="Actas de Comite" description="Genera actas COPASST y Convivencia Laboral con IA, listas para firma." />
+
+      {/* Unsigned actas alert */}
+      {actas.filter(a => !a.firmada).length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            <strong>{actas.filter(a => !a.firmada).length} acta(s)</strong> pendiente(s) de firma.
+            Las actas deben ser firmadas y archivadas para cumplir con la trazabilidad del SG-SST.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Nueva acta</CardTitle></CardHeader>
@@ -274,10 +297,17 @@ export default function Committees() {
                 .replace(/_________________________/g, "<div style='border-bottom:1px solid #333;width:250px;margin-top:40px'></div>")
                 .replace(/\n\n/g, "</p><p>")
                 .replace(/\n/g, "<br>");
+              const headerHTML = getExportHeaderHTML({
+                title: "Acta de Reunión — Comité",
+                moduleCode: "ACTA",
+                empresaNombre: empresa?.razon_social,
+                empresaNit: empresa?.nit,
+              });
               printW.document.write(`<!DOCTYPE html><html><head><title>Acta — ${empresa?.razon_social || ""}</title>
-<style>body{font-family:Georgia,serif;margin:40px 60px;font-size:12px;line-height:1.6;color:#1a1a1a}h1{font-size:18px;text-align:center}h2{font-size:14px;border-bottom:2px solid #333;padding-bottom:4px;margin-top:24px}h3{font-size:13px;margin-top:16px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:11px}th{background:#f3f4f6}hr{border:none;border-top:1px solid #ddd;margin:16px 0}li{margin-left:20px}@media print{@page{margin:20mm}}</style>
-</head><body><p>${html}</p></body></html>`);
+<style>body{font-family:'Segoe UI',Arial,sans-serif;margin:40px 60px;font-size:12px;line-height:1.6;color:#1a1a1a;max-width:900px;margin:0 auto;padding:20px 40px}h1{font-size:18px;text-align:center}h2{font-size:14px;border-bottom:2px solid #333;padding-bottom:4px;margin-top:24px}h3{font-size:13px;margin-top:16px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:11px}th{background:#f3f4f6}hr{border:none;border-top:1px solid #ddd;margin:16px 0}li{margin-left:20px}@media print{@page{margin:20mm}}</style>
+</head><body>${headerHTML}<p>${html}</p>${getExportFooterHTML()}</body></html>`);
               printW.document.close();
+              injectLogoIntoWindow(printW, logo);
               setTimeout(() => printW.print(), 500);
             }}>
               <Printer className="h-4 w-4" /> Exportar PDF
@@ -315,7 +345,7 @@ export default function Committees() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {a.hay_quorum !== undefined && (
                       <Badge variant={a.hay_quorum ? "default" : "destructive"} className="text-[10px]">
                         {a.hay_quorum ? "Con quorum" : "Sin quorum"}
@@ -326,15 +356,76 @@ export default function Committees() {
                         <Sparkles className="h-3 w-3" /> IA
                       </Badge>
                     )}
-                    <Badge variant="outline" className="text-[10px]">
-                      {a.estado}
-                    </Badge>
-                    {(a as any).contenido_generado && (
+                    {/* Signature status */}
+                    {a.firmada ? (
+                      <Badge variant="default" className="text-[10px] gap-1 bg-green-600">
+                        <CheckCircle2 className="h-3 w-3" /> Firmada
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1 text-amber-600 border-amber-300"
+                        onClick={async () => {
+                          await supabase.from("actas_comite").update({
+                            firmada: true,
+                            fecha_firma: new Date().toISOString(),
+                            estado: "firmada",
+                          }).eq("id", a.id);
+                          await logsService.log({
+                            tipo: "actualizar",
+                            modulo: "comites",
+                            descripcion: `Acta #${a.numero_acta} marcada como firmada`,
+                            empresa_id: selectedEmpresa || undefined,
+                            usuario_id: user?.id,
+                            metadata: { acta_id: a.id, numero_acta: a.numero_acta },
+                          });
+                          toast.success("Acta marcada como firmada");
+                          comitesService.listActas(a.comite_id).then(setActas);
+                        }}
+                      >
+                        <PenLine className="h-3 w-3" /> Firmar
+                      </Button>
+                    )}
+                    {/* Archive status */}
+                    {a.archivada ? (
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Archive className="h-3 w-3" /> Archivada
+                      </Badge>
+                    ) : a.firmada ? (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs gap-1"
-                        onClick={() => setGeneratedActa((a as any).contenido_generado)}
+                        onClick={async () => {
+                          await supabase.from("actas_comite").update({
+                            archivada: true,
+                            fecha_archivado: new Date().toISOString(),
+                          }).eq("id", a.id);
+                          await logsService.log({
+                            tipo: "actualizar",
+                            modulo: "comites",
+                            descripcion: `Acta #${a.numero_acta} archivada`,
+                            empresa_id: selectedEmpresa || undefined,
+                            usuario_id: user?.id,
+                            metadata: { acta_id: a.id, numero_acta: a.numero_acta },
+                          });
+                          toast.success("Acta archivada");
+                          comitesService.listActas(a.comite_id).then(setActas);
+                        }}
+                      >
+                        <Archive className="h-3 w-3" /> Archivar
+                      </Button>
+                    ) : null}
+                    <Badge variant="outline" className="text-[10px]">
+                      {a.estado}
+                    </Badge>
+                    {a.contenido_generado && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => setGeneratedActa(a.contenido_generado)}
                       >
                         <FileText className="h-3 w-3" /> Ver
                       </Button>

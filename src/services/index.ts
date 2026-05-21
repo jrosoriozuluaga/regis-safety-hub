@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type {
   Empresa,
+  PilaRecord,
   MatrizRiesgo,
   RiesgoMatriz,
   Comite,
@@ -92,6 +93,299 @@ export const empresasService = {
       empresa: row.empresas_cliente as Empresa,
       puntaje_total: row.puntaje_total,
     }));
+  },
+};
+
+// ── PILA Service ──────────────────────────────
+
+function getPastPeriods(count: number): string[] {
+  const periods: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return periods;
+}
+
+function isOverdue(periodo: string, diaSolicitud: number = 16): boolean {
+  const [y, m] = periodo.split("-").map(Number);
+  const deadline = new Date(y, m, diaSolicitud);
+  return new Date() > deadline;
+}
+
+export type PilaConfig = {
+  dia_solicitud: number;
+  dias_recordatorio: number;
+  max_recordatorios: number;
+  dia_escalamiento: number;
+  n8n_webhook_base_url: string | null;
+};
+
+export const pilaService = {
+  /** Load PILA config values from configuracion_sistema */
+  loadConfig: async (): Promise<PilaConfig> => {
+    const { data } = await supabase
+      .from("configuracion_sistema")
+      .select("clave, valor")
+      .in("clave", [
+        "pila_dia_solicitud",
+        "pila_dias_recordatorio",
+        "pila_max_recordatorios",
+        "pila_dia_escalamiento",
+        "n8n_webhook_base_url",
+      ]);
+    const cfg: Record<string, string> = {};
+    (data ?? []).forEach((r: any) => { cfg[r.clave] = r.valor; });
+    return {
+      dia_solicitud: parseInt(cfg.pila_dia_solicitud || "16", 10),
+      dias_recordatorio: parseInt(cfg.pila_dias_recordatorio || "3", 10),
+      max_recordatorios: parseInt(cfg.pila_max_recordatorios || "3", 10),
+      dia_escalamiento: parseInt(cfg.pila_dia_escalamiento || "25", 10),
+      n8n_webhook_base_url: cfg.n8n_webhook_base_url || null,
+    };
+  },
+
+  /** List PILA records, optionally filtered by empresa */
+  listRecords: async (empresaId?: string): Promise<PilaRecord[]> => {
+    let query = supabase
+      .from("pila_records")
+      .select("*, empresas_cliente(razon_social)")
+      .order("periodo", { ascending: false });
+    if (empresaId && empresaId !== "all") query = query.eq("empresa_id", empresaId);
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map((r: any) => ({
+      ...r,
+      empresa_razon_social: r.empresas_cliente?.razon_social,
+    }));
+  },
+
+  /** Sync periods: create missing records for last N months, mark overdue */
+  syncPeriods: async (
+    empresas: Empresa[],
+    selectedId?: string,
+    config?: PilaConfig,
+    userId?: string,
+  ): Promise<{ created: number; overdue: number }> => {
+    const diaSolicitud = config?.dia_solicitud ?? 16;
+    const targetEmpresas = selectedId && selectedId !== "all"
+      ? empresas.filter(e => e.id === selectedId)
+      : empresas;
+    const periods = getPastPeriods(6);
+    let created = 0;
+    let markedOverdue = 0;
+
+    for (const emp of targetEmpresas) {
+      for (const periodo of periods) {
+        const { data: existing } = await supabase
+          .from("pila_records")
+          .select("id, estado")
+          .eq("empresa_id", emp.id)
+          .eq("periodo", periodo)
+          .maybeSingle();
+
+        if (!existing) {
+          const estado = isOverdue(periodo, diaSolicitud) ? "vencida" : "pendiente";
+          await supabase.from("pila_records").insert({
+            empresa_id: emp.id,
+            periodo,
+            estado,
+            fecha_solicitud: new Date().toISOString(),
+          });
+          created++;
+          if (estado === "vencida") markedOverdue++;
+        } else if (existing.estado === "pendiente" && isOverdue(periodo, diaSolicitud)) {
+          await supabase.from("pila_records").update({ estado: "vencida" }).eq("id", existing.id);
+          markedOverdue++;
+        }
+      }
+    }
+
+    // Log activity
+    await logsService.log({
+      tipo: "sincronizacion",
+      modulo: "pila",
+      descripcion: `Sincronización PILA: ${created} periodos creados, ${markedOverdue} marcados vencidos`,
+      usuario_id: userId ?? null,
+      metadata: { created, overdue: markedOverdue, empresas: targetEmpresas.length },
+    });
+
+    return { created, overdue: markedOverdue };
+  },
+
+  /** Upload a PILA file for a specific empresa + periodo */
+  uploadFile: async (
+    empresaId: string,
+    periodo: string,
+    file: File,
+    userId?: string,
+  ): Promise<PilaRecord> => {
+    const filePath = `pila/${empresaId}/${periodo}_${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("documentos")
+      .upload(filePath, file, { upsert: true });
+
+    let archivoUrl: string | undefined;
+    if (!uploadError) {
+      const { data: urlData } = supabase.storage.from("documentos").getPublicUrl(filePath);
+      archivoUrl = urlData.publicUrl;
+    }
+
+    const now = new Date().toISOString();
+    const { data: existing } = await supabase
+      .from("pila_records")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .eq("periodo", periodo)
+      .maybeSingle();
+
+    let record: PilaRecord;
+    if (existing) {
+      const { data, error } = await supabase
+        .from("pila_records")
+        .update({ estado: "cargada", fecha_carga: now, archivo_url: archivoUrl })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      record = data;
+    } else {
+      const { data, error } = await supabase
+        .from("pila_records")
+        .insert({ empresa_id: empresaId, periodo, estado: "cargada", fecha_carga: now, archivo_url: archivoUrl })
+        .select()
+        .single();
+      if (error) throw error;
+      record = data;
+    }
+
+    await logsService.log({
+      tipo: "carga_archivo",
+      modulo: "pila",
+      descripcion: `PILA cargada: ${file.name} — periodo ${periodo}`,
+      empresa_id: empresaId,
+      usuario_id: userId ?? null,
+      metadata: { periodo, filename: file.name, archivo_url: archivoUrl },
+    });
+
+    return record;
+  },
+
+  /** Send reminder via n8n webhook (primary) or Edge Function (fallback) */
+  sendReminder: async (
+    record: PilaRecord,
+    empresa: Empresa,
+    config?: PilaConfig,
+    userId?: string,
+  ): Promise<{ success: boolean; escalated?: boolean }> => {
+    const webhookUrl = config?.n8n_webhook_base_url;
+    const diasRecordatorio = config?.dias_recordatorio ?? 3;
+    const maxRecordatorios = config?.max_recordatorios ?? 3;
+    const intentos = (record.intentos_solicitud || 0) + 1;
+    const escalated = intentos > maxRecordatorios;
+
+    const email = empresa.email_contacto_pila || empresa.email_contacto;
+    const nombre = empresa.nombre_contacto_pila || empresa.nombre_contacto;
+
+    // Generate public upload link for the client
+    const exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const token = btoa(JSON.stringify({ e: empresa.id, p: record.periodo, n: empresa.razon_social, exp }));
+    const uploadLink = `${window.location.origin}/upload-pila?t=${token}`;
+
+    if (webhookUrl) {
+      const response = await fetch(`${webhookUrl}/pila-reminder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empresa_id: empresa.id,
+          empresa_nombre: empresa.razon_social,
+          empresa_nit: empresa.nit,
+          email,
+          nombre_contacto: nombre,
+          periodo: record.periodo,
+          estado: record.estado,
+          intento: intentos,
+          escalado: escalated,
+          upload_link: uploadLink,
+        }),
+      });
+      if (!response.ok) throw new Error("Error en webhook n8n");
+    } else {
+      const { error } = await supabase.functions.invoke("send-pila-reminder", {
+        body: {
+          empresa_id: empresa.id,
+          empresa_nombre: empresa.razon_social,
+          email,
+          nombre_contacto: nombre,
+          periodo: record.periodo,
+          estado: record.estado,
+          intento: intentos,
+          upload_link: uploadLink,
+        },
+      });
+      if (error) throw error;
+    }
+
+    // Track reminder attempt
+    const proximoRecordatorio = new Date(Date.now() + diasRecordatorio * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from("pila_records").update({
+      intentos_solicitud: intentos,
+      proximo_recordatorio: proximoRecordatorio,
+    }).eq("id", record.id);
+
+    await logsService.log({
+      tipo: escalated ? "escalamiento" : "recordatorio",
+      modulo: "pila",
+      descripcion: `Recordatorio PILA ${escalated ? "(ESCALADO) " : ""}enviado a ${email} — intento ${intentos}`,
+      empresa_id: empresa.id,
+      usuario_id: userId ?? null,
+      metadata: { periodo: record.periodo, intento: intentos, email, escalado: escalated },
+    });
+
+    return { success: true, escalated };
+  },
+
+  /** Send WhatsApp reminder via Twilio Edge Function */
+  sendWhatsAppReminder: async (
+    record: PilaRecord,
+    empresa: Empresa,
+    uploadLink?: string,
+    userId?: string,
+  ): Promise<{ success: boolean; automated: boolean }> => {
+    const phone = empresa.whatsapp_contacto_pila || (empresa as any).telefono;
+    if (!phone) throw new Error("No hay número de WhatsApp registrado");
+
+    const { data, error } = await supabase.functions.invoke("send-whatsapp-reminder", {
+      body: {
+        phone,
+        nombre_contacto: empresa.nombre_contacto_pila || empresa.nombre_contacto,
+        empresa_id: empresa.id,
+        empresa_nombre: empresa.razon_social,
+        modulo: "pila",
+        periodo: record.periodo,
+        intento: (record.intentos_solicitud || 0) + 1,
+        upload_link: uploadLink,
+      },
+    });
+
+    if (error) throw error;
+    return { success: data?.success ?? false, automated: !!data?.sid };
+  },
+
+  /** Calculate PILA stats from records */
+  getStats: (records: PilaRecord[]) => {
+    const total = records.length;
+    const cargadas = records.filter(r => r.estado === "cargada").length;
+    const validadas = records.filter(r => r.estado === "validada").length;
+    const aprobadas = records.filter(r => r.estado === "aprobada").length;
+    const pendientes = records.filter(r => r.estado === "pendiente").length;
+    const vencidas = records.filter(r => r.estado === "vencida").length;
+    // Compliance % only counts aprobadas (analyst-reviewed)
+    const pct = total > 0 ? Math.round((aprobadas / total) * 100) : 0;
+    // "En proceso" = cargadas + validadas (uploaded but not yet approved)
+    const enProceso = cargadas + validadas;
+    return { total, cargadas, validadas, aprobadas, pendientes, vencidas, pct, enProceso };
   },
 };
 
@@ -510,6 +804,44 @@ export const alertsService = {
         empresa_nombre: c.empresas_cliente?.razon_social,
         fecha: c.fecha_evaluacion,
         severidad: c.puntaje_total < 30 ? "alta" : "media",
+      });
+    });
+
+    // 5. Equipos vencidos o por vencer
+    const { data: equiposVencidos } = await supabase
+      .from("inventario_equipos")
+      .select("id, nombre, tipo, fecha_vencimiento, empresa_id, empresas_cliente(razon_social)")
+      .or("estado.eq.vencido,estado.eq.por_vencer");
+    (equiposVencidos ?? []).forEach((eq: any) => {
+      const isVencido = new Date(eq.fecha_vencimiento) < new Date();
+      alerts.push({
+        id: `equip-${eq.id}`,
+        tipo: isVencido ? "pila_vencida" : "pila_pendiente", // reuse existing types
+        titulo: `${isVencido ? "Equipo vencido" : "Equipo por vencer"}: ${eq.nombre}`,
+        descripcion: `${eq.empresas_cliente?.razon_social ?? "Empresa"} — ${eq.tipo} vence ${new Date(eq.fecha_vencimiento).toLocaleDateString("es-CO")}`,
+        empresa_id: eq.empresa_id,
+        empresa_nombre: eq.empresas_cliente?.razon_social,
+        fecha: eq.fecha_vencimiento,
+        severidad: isVencido ? "alta" : "media",
+      });
+    });
+
+    // 6. Actas pendientes de firma
+    const { data: actasSinFirma } = await supabase
+      .from("actas_comite")
+      .select("id, numero_acta, comite_id, comites(tipo, empresa_id, empresas_cliente(razon_social))")
+      .eq("firmada", false)
+      .in("estado", ["borrador", "generada"]);
+    (actasSinFirma ?? []).forEach((a: any) => {
+      alerts.push({
+        id: `acta-f-${a.id}`,
+        tipo: "pila_pendiente",
+        titulo: `Acta #${a.numero_acta} sin firmar`,
+        descripcion: `${a.comites?.empresas_cliente?.razon_social ?? "Empresa"} — Comité ${a.comites?.tipo ?? ""}`,
+        empresa_id: a.comites?.empresa_id,
+        empresa_nombre: a.comites?.empresas_cliente?.razon_social,
+        fecha: new Date().toISOString(),
+        severidad: "media",
       });
     });
 

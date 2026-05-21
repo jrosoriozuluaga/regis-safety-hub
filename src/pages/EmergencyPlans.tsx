@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Mic, Square, Upload, Sparkles, Loader2, AlertTriangle, Shield } from "lucide-react";
+import { Mic, Square, Upload, Sparkles, Loader2, AlertTriangle, Shield, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { empresasService, emergenciasService } from "@/services";
+import { empresasService, emergenciasService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
 import type { Empresa, PlanEmergencia } from "@/types/domain";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { getExportHeaderHTML, getExportFooterHTML, injectLogoIntoWindow } from "@/lib/exportHeader";
+import logo from "@/assets/regis-logo.jpeg";
 
 export default function EmergencyPlans() {
   const { user } = useAuth();
@@ -108,6 +110,14 @@ export default function EmergencyPlans() {
         analisis_json: analysis,
         estado: analysis ? "en_revision" : "borrador",
       });
+      await logsService.log({
+        tipo: "generar",
+        modulo: "emergencias",
+        descripcion: `Plan de emergencia creado${analysis ? " con análisis de vulnerabilidad IA" : ""}`,
+        empresa_id: selectedEmpresa || undefined,
+        usuario_id: user?.id,
+        metadata: { tiene_analisis_ia: !!analysis, nivel_riesgo: analysis?.nivel_riesgo_global },
+      });
       toast.success("Plan de emergencia creado");
       setTranscript("");
       setAnalysis(null);
@@ -126,6 +136,60 @@ export default function EmergencyPlans() {
     alto: "text-red-700 bg-red-50",
     medio: "text-yellow-700 bg-yellow-50",
     bajo: "text-green-700 bg-green-50",
+  };
+
+  const handleExportPlan = (plan: PlanEmergencia) => {
+    const emp = empresas.find((e) => e.id === plan.empresa_id);
+    const a = plan.analisis_json;
+    const headerHTML = getExportHeaderHTML({
+      logoSrc: logo,
+      module: "PLAN-EME",
+      nit: emp?.nit || "",
+      empresaNombre: emp?.razon_social || plan.empresa_razon_social || "Empresa",
+    });
+
+    let body = `<h2 style="margin-top:24px">Plan de Emergencia</h2>`;
+    body += `<p><strong>Estado:</strong> ${plan.estado} &nbsp;|&nbsp; <strong>Fecha:</strong> ${new Date(plan.created_at).toLocaleDateString("es-CO")}</p>`;
+
+    if (a?.resumen_ejecutivo) {
+      body += `<h3>Resumen Ejecutivo</h3><p>${a.resumen_ejecutivo}</p>`;
+    }
+    if (a?.nivel_riesgo_global) {
+      body += `<p><strong>Nivel de riesgo global:</strong> ${a.nivel_riesgo_global.toUpperCase()}</p>`;
+    }
+    if (a?.amenazas_identificadas?.length) {
+      body += `<h3>Amenazas Identificadas</h3><table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:12px">`;
+      body += `<tr style="background:#f1f5f9"><th>Amenaza</th><th>Tipo</th><th>Probabilidad</th></tr>`;
+      for (const am of a.amenazas_identificadas) {
+        body += `<tr><td>${am.amenaza}</td><td>${am.tipo}</td><td>${am.probabilidad}</td></tr>`;
+      }
+      body += `</table>`;
+    }
+    if (a?.recomendaciones?.length) {
+      body += `<h3>Recomendaciones</h3><table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:12px">`;
+      body += `<tr style="background:#f1f5f9"><th>Acción</th><th>Prioridad</th></tr>`;
+      for (const r of a.recomendaciones) {
+        body += `<tr><td>${r.accion}</td><td>${r.prioridad}</td></tr>`;
+      }
+      body += `</table>`;
+    }
+    if (plan.transcripcion) {
+      body += `<h3>Transcripción de Inspección</h3><pre style="font-size:11px;white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:4px">${plan.transcripcion}</pre>`;
+    }
+
+    const footerHTML = getExportFooterHTML();
+    const printW = window.open("", "_blank");
+    if (!printW) return;
+    printW.document.write(`<html><head><title>Plan de Emergencia — ${emp?.razon_social || ""}</title>
+<style>body{font-family:system-ui,sans-serif;margin:40px;font-size:13px;color:#1e293b;line-height:1.6}
+h2{color:#0f172a;border-bottom:2px solid #0369a1;padding-bottom:8px}
+h3{color:#0369a1;margin-top:20px}
+table{margin:8px 0}
+@media print{@page{margin:15mm}body{margin:0}}</style>
+</head><body>${headerHTML}${body}${footerHTML}</body></html>`);
+    printW.document.close();
+    injectLogoIntoWindow(printW, logo);
+    setTimeout(() => printW.print(), 400);
   };
 
   return (
@@ -249,6 +313,11 @@ export default function EmergencyPlans() {
                   <div className="text-sm font-medium">{p.empresa_razon_social || "Empresa"}</div>
                   <div className="text-xs text-muted-foreground">Estado: {p.estado} — {new Date(p.created_at).toLocaleDateString("es-CO")}</div>
                 </div>
+                {p.analisis_json && (
+                  <Button variant="ghost" size="sm" onClick={() => handleExportPlan(p)} className="gap-1.5 shrink-0">
+                    <Printer className="h-3.5 w-3.5" /> Exportar
+                  </Button>
+                )}
               </div>
             ))}
           </CardContent>
