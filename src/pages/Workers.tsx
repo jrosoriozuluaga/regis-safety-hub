@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
+
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -104,7 +104,7 @@ function validateRow(row: Record<string, string>, allCedulas: string[], rowIdx: 
   return null;
 }
 
-function downloadTemplate(format: "csv" | "xlsx") {
+async function downloadTemplate(format: "csv" | "xlsx") {
   if (format === "csv") {
     const csv = Papa.unparse({ fields: [...BULK_HEADERS], data: [BULK_HEADERS.map((h) => TEMPLATE_EXAMPLE[h])] });
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -113,6 +113,7 @@ function downloadTemplate(format: "csv" | "xlsx") {
     a.href = url; a.download = "plantilla_trabajadores.csv"; a.click();
     URL.revokeObjectURL(url);
   } else {
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([[...BULK_HEADERS], BULK_HEADERS.map((h) => TEMPLATE_EXAMPLE[h])]);
     ws["!cols"] = BULK_HEADERS.map(() => ({ wch: 18 }));
     const wb = XLSX.utils.book_new();
@@ -318,8 +319,9 @@ export default function Workers() {
       });
     } else if (ext === "xlsx" || ext === "xls") {
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         try {
+          const XLSX = await import("xlsx");
           const wb = XLSX.read(ev.target?.result, { type: "array" });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const raw = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
