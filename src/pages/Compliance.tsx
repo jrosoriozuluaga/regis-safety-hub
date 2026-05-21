@@ -111,11 +111,27 @@ export default function Compliance() {
     loadCumplimientoData();
   }, [selectedEmpresa, estandares]);
 
-  const selectedCapitulo = empresas.find((e) => e.id === selectedEmpresa)?.capitulo_0312 || "";
+  // Determine chapter: from empresas array (admin/consultor) or fetch for client
+  const [clienteEmpresa, setClienteEmpresa] = useState<Empresa | null>(null);
+  useEffect(() => {
+    if (user?.role === "cliente" && user.empresa_id && empresas.length === 0) {
+      empresasService.getById(user.empresa_id).then((e) => {
+        if (e) setClienteEmpresa(e);
+      });
+    }
+  }, [user, empresas]);
+
+  const selectedCapitulo = (() => {
+    const emp = empresas.find((e) => e.id === selectedEmpresa) || clienteEmpresa;
+    const cap = emp?.capitulo_0312;
+    if (!cap) return "";
+    return String(cap);
+  })();
   const filteredEstandares = estandares.filter((e) => {
     if (!selectedCapitulo) return true;
-    if (selectedCapitulo === "1" || selectedCapitulo === "capitulo_1") return e.aplica_cap1;
-    if (selectedCapitulo === "2" || selectedCapitulo === "capitulo_2") return e.aplica_cap2;
+    const cap = selectedCapitulo.replace("capitulo_", "");
+    if (cap === "1") return e.aplica_cap1;
+    if (cap === "2") return e.aplica_cap2;
     return e.aplica_cap3;
   });
 
