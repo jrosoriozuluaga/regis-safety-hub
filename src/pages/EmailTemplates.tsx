@@ -28,7 +28,7 @@ import {
   Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 
 // Sample data for template preview
@@ -99,7 +99,7 @@ export default function EmailTemplates() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
-  const { toast } = useToast();
+  // toast imported from sonner at top level
 
   // Edit form state
   const [editNombre, setEditNombre] = useState("");
@@ -180,7 +180,7 @@ export default function EmailTemplates() {
         });
         setSelectedId(newTemplate.id);
         logsService.log({ tipo: "crear", modulo: "plantillas", descripcion: `Plantilla creada: "${editNombre}" (${editTipo})` });
-        toast({ title: "Plantilla creada", description: `"${editNombre}" guardada correctamente.` });
+        toast.success(`Plantilla "${editNombre}" creada correctamente.`);
       } else if (selected) {
         await templatesService.update(selected.id, {
           nombre: editNombre,
@@ -189,13 +189,13 @@ export default function EmailTemplates() {
           version: (selected.version || 1) + 1,
         });
         logsService.log({ tipo: "actualizar", modulo: "plantillas", descripcion: `Plantilla actualizada: "${editNombre}" v${(selected.version || 1) + 1}` });
-        toast({ title: "Plantilla actualizada", description: `"${editNombre}" v${(selected.version || 1) + 1} guardada.` });
+        toast.success(`Plantilla "${editNombre}" v${(selected.version || 1) + 1} actualizada.`);
       }
       setEditMode(false);
       setCreating(false);
       await loadTemplates();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -208,7 +208,7 @@ export default function EmailTemplates() {
 
   function copyVariable(v: string) {
     navigator.clipboard.writeText(`{${v}}`);
-    toast({ title: "Copiado", description: `{${v}} copiado al portapapeles` });
+    toast.success(`Variable {${v}} copiada al portapapeles`);
   }
 
   return (

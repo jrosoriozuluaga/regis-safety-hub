@@ -152,8 +152,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Configuracion del Sistema"
-        description="Parametros globales de la plataforma. Los cambios se aplican de inmediato."
+        title="Configuración del Sistema"
+        description="Parámetros globales de la plataforma. Los cambios se aplican de inmediato."
         actions={
           dirtyCount > 0 ? (
             <Button onClick={handleSaveAll} className="gap-2">

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
   Select,
   SelectContent,
@@ -228,28 +229,23 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarDays className="h-6 w-6" />
-            Calendario SG-SST
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Vista consolidada de eventos, vencimientos y reuniones.
-          </p>
-        </div>
-        <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="Todas las empresas" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todas las empresas</SelectItem>
-            {empresas.map((e) => (
-              <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title="Calendario SG-SST"
+        description="Vista consolidada de eventos, vencimientos y reuniones."
+        actions={
+          <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Todas las empresas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas las empresas</SelectItem>
+              {empresas.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {/* Module summary badges */}
       <div className="flex gap-2 flex-wrap">

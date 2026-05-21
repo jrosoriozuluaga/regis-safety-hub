@@ -5,6 +5,7 @@ import { empresasService, cumplimientoService } from "@/services";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
   Select,
   SelectContent,
@@ -260,33 +261,28 @@ export default function CompanyReport() {
     <div>
       {/* Controls — hidden in print */}
       <div className="print:hidden space-y-4 mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              Informe por Empresa
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Genera un reporte PDF del estado del SG-SST.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={selectedId} onValueChange={setSelectedId}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Selecciona empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                {empresas.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handlePrint} disabled={!report || loading} className="gap-2">
-              <Printer className="h-4 w-4" />
-              Imprimir / PDF
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Informe por Empresa"
+          description="Genera un reporte PDF del estado del SG-SST."
+          actions={
+            <div className="flex items-center gap-3">
+              <Select value={selectedId} onValueChange={setSelectedId}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Selecciona empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {empresas.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handlePrint} disabled={!report || loading} className="gap-2">
+                <Printer className="h-4 w-4" />
+                Imprimir / PDF
+              </Button>
+            </div>
+          }
+        />
       </div>
 
       {loading ? (

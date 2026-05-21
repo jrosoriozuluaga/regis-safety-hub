@@ -208,7 +208,7 @@ export default function MedicalExams() {
           <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Stethoscope className="h-4 w-4" /> Examenes registrados
+                <Stethoscope className="h-4 w-4" /> Exámenes registrados
                 {examenes.length > 0 && (
                   <Badge variant="secondary" className="ml-2">{examenes.length}</Badge>
                 )}
@@ -228,7 +228,7 @@ export default function MedicalExams() {
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nombre o cedula..."
+                      placeholder="Buscar por nombre o cédula..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="pl-8 h-8 w-48 text-xs"
@@ -275,7 +275,7 @@ export default function MedicalExams() {
             ) : (
               <div className="p-8 text-center text-muted-foreground">
                 {search.trim()
-                  ? "No se encontraron examenes con esa busqueda."
+                  ? "No se encontraron exámenes con esa búsqueda."
                   : selectedEmpresa
                     ? "No hay examenes medicos registrados para esta empresa."
                     : "Selecciona una empresa para ver los examenes."}
