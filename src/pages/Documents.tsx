@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -546,25 +547,19 @@ export default function Documents() {
                             </Button>
                           )}
                           {doc.archivo_url && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              asChild
-                              title="Ver / Descargar"
-                            >
-                              <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
-                                <Eye className="h-4 w-4" />
-                              </a>
-                            </Button>
+                            <Tooltip><TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" asChild>
+                                <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </TooltipTrigger><TooltipContent>Ver / Descargar</TooltipContent></Tooltip>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Eliminar"
-                            onClick={() => setDeleteTarget(doc)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(doc)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TooltipTrigger><TooltipContent>Eliminar</TooltipContent></Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>

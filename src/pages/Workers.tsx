@@ -35,6 +35,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthContext";
 import { empresasService, trabajadoresService, logsService } from "@/services";
@@ -546,21 +547,16 @@ export default function Workers() {
                           {isAdmin && (
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => openEdit(w)} title="Editar">
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleToggleActive(w)}
-                                  title={w.activo ? "Retirar" : "Reactivar"}
-                                >
-                                  {w.activo ? (
-                                    <UserMinus className="h-4 w-4 text-red-500" />
-                                  ) : (
-                                    <Power className="h-4 w-4 text-emerald-600" />
-                                  )}
-                                </Button>
+                                <Tooltip><TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => openEdit(w)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+                                <Tooltip><TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => handleToggleActive(w)}>
+                                    {w.activo ? <UserMinus className="h-4 w-4 text-red-500" /> : <Power className="h-4 w-4 text-emerald-600" />}
+                                  </Button>
+                                </TooltipTrigger><TooltipContent>{w.activo ? "Retirar" : "Reactivar"}</TooltipContent></Tooltip>
                               </div>
                             </TableCell>
                           )}

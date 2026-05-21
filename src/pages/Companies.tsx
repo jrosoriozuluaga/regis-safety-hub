@@ -48,6 +48,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthContext";
 import { empresasService, usuariosService, logsService, type Usuario } from "@/services";
@@ -653,21 +654,16 @@ export default function Companies() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(e)} title="Editar">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleToggleActive(e)}
-                            title={e.activo ? "Desactivar" : "Reactivar"}
-                          >
-                            {e.activo ? (
-                              <PowerOff className="h-4 w-4 text-red-500" />
-                            ) : (
-                              <Power className="h-4 w-4 text-emerald-600" />
-                            )}
-                          </Button>
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => handleToggleActive(e)}>
+                              {e.activo ? <PowerOff className="h-4 w-4 text-red-500" /> : <Power className="h-4 w-4 text-emerald-600" />}
+                            </Button>
+                          </TooltipTrigger><TooltipContent>{e.activo ? "Desactivar" : "Reactivar"}</TooltipContent></Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -565,23 +566,16 @@ export default function EquipmentInventory() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(eq)}
-                            title="Editar"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteTarget(eq)}
-                            title="Eliminar"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(eq)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger><TooltipContent>Editar</TooltipContent></Tooltip>
+                          <Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(eq)} className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger><TooltipContent>Eliminar</TooltipContent></Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>
