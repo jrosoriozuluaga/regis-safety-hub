@@ -9,6 +9,33 @@
 
 ## CHANGELOG
 
+### 2026-05-21 — Cierre definitivo: Demo Script v2 + documentacion final
+
+**Resumen:** Demo script reescrito con todas las funcionalidades nuevas.
+PLAN_10_DIAS marcado como listo para grabar. Proyecto cerrado para desarrollo.
+
+#### Cambios
+| Commit | Descripcion |
+|--------|-------------|
+| `76601bb` | Demo script FINAL v2 — Fireflies, observabilidad, costos, 4 usuarios |
+| (este) | PLAN_10_DIAS cierre definitivo — listo para grabar |
+
+#### Contenido nuevo en Demo Script v2
+- Cascada Haiku/Sonnet (~70% ahorro) en Bloques 1, 3 y 9
+- Fireflies.ai con diarizacion en Bloques 1, 5 y 10
+- Escalacion PILA a RRHH en Bloque 2
+- Deteccion no-medico + confianza en Bloque 3
+- Aprobacion ARL de matrices en Bloque 4
+- Tres fuentes de actas (manual, Fireflies, Whisper) + asistencia digital en Bloque 5
+- Toggle Admin/Cliente con selector empresa en Bloque 7
+- Dashboard observabilidad en Bloque 8
+- 4 usuarios demo en Bloque 9
+- 8 Edge Functions (actualizado de 7)
+- Aviso privacidad Ley 1581 en Bloque 2
+- Idempotencia en Bloque 2
+
+---
+
 ### 2026-05-21 — Dia 2 (continuacion): Batches F, G, H, I + mejoras manuales
 
 **Resumen:** 4 batches adicionales (F-I) + mejoras manuales. ~30 commits mas.
@@ -189,35 +216,48 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 | 10 | 29 mayo (jue) | Buffer | — |
 
 **Dias 1-7: COMPLETADOS en 2 dias reales (20 y 21 mayo)**
-**Dia 8: Ensayo (5 PDFs examenes, Fireflies test, Outlook test, dry-run 25 min)**
+**Dia 8: Ensayo (audio emergencias, Fireflies test, 5 PDFs examenes, dry-run 25 min)**
 **Dia 9: Grabar video final + subir a YouTube**
 **Dia 10: Buffer por si se necesita re-grabar**
 
+### Usuarios demo configurados (4 usuarios)
+| Email | Rol | Empresa | Password |
+|-------|-----|---------|----------|
+| admin@regiscolombia.com | admin | (ve todo) | [existente] |
+| consultor@regiscolombia.com | consultor | (empresas asignadas) | [existente] |
+| admin@saborcriollo.com | cliente | Sabor Criollo S.A.S. | Demo2026! |
+| admin@construandes.com | cliente | Construandes Ltda. | Demo2026! |
+
 ---
 
-## Pendientes finales
+## Estado: LISTO PARA GRABAR
 
-### Pendientes tecnicos
+Todo el desarrollo esta completo. Solo quedan tareas de preparacion y grabacion.
+
+### Pendientes tecnicos (opcionales)
 - [ ] Migration 010 (pg_cron) — verificar si free tier de Supabase soporta pg_cron
-- [x] Deploy Edge Functions (process-exam-pdf, generate-acta, fetch-fireflies-transcripts, generate-bitacora, weekly-summary)
+- [x] Deploy Edge Functions (8/8 desplegadas)
 - [x] Crear usuario cliente Construandes para demo multi-tenant
 - [x] Resetear password admin@saborcriollo.com (Demo2026!)
 - [x] Migrations 011-013 aplicadas
+- [x] Demo script v2 reescrito con todas las funcionalidades
 
-### Pendientes del video
-- [ ] Ensayo completo del demo (dry-run 25 min)
+### Pendientes del video (unico trabajo restante)
+- [ ] Grabar audio de 3+ minutos para plan de emergencias
+- [ ] Grabar reunion test con Fireflies (importar transcripcion)
 - [ ] Preparar 5 PDFs examenes distintos para el video
-- [ ] Grabar reunion test con Fireflies
-- [ ] Probar email con Outlook/Hotmail
+- [ ] Ensayo completo del demo (dry-run 25 min)
 - [ ] Grabar video final
 - [ ] Subir a YouTube + entregar en plataforma Aztec
 
-### Pendientes opcionales (bonus)
+### Completados (bonus)
 - [x] Cron bitacora mensual + resumen semanal (Batch F)
 - [x] Vista observabilidad AdminDashboard (Batch F)
 - [x] Fireflies + Whisper transcripcion reuniones (Batch H)
 - [x] Escalacion PILA a RRHH (Batch H)
 - [x] Paginacion + skeletons + tooltips + empty states (Batch I)
+- [x] Toggle Admin/Cliente con selector empresa (post-Batch I)
+- [x] Demo script FINAL v2 (cierre)
 
 ---
 
