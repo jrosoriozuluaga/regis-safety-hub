@@ -35,7 +35,7 @@ export default function Committees() {
   const [actas, setActas] = useState<ActaComite[]>([]);
   // Meeting fields
   const [lugar, setLugar] = useState("Oficinas de la empresa");
-  const [tipoReunion, setTipoReunion] = useState<"ordinaria" | "extraordinaria">("ordinaria");
+  const [tipoReunion, setTipoReunion] = useState<"ordinaria" | "extraordinaria" | "seguimiento">("ordinaria");
   const [horaInicio, setHoraInicio] = useState(() => new Date().toTimeString().slice(0, 5));
   const [horaFin, setHoraFin] = useState(() => new Date(Date.now() + 3600000).toTimeString().slice(0, 5));
 
@@ -52,11 +52,12 @@ export default function Committees() {
   const [editableTranscription, setEditableTranscription] = useState("");
   const [firefliesError, setFirefliesError] = useState("");
 
-  // Quorum calculation
+  // Quorum calculation (seguimiento doesn't require quorum)
   const presentCount = Object.values(attendance).filter(Boolean).length;
   const totalMembers = members.length;
   const quorumRequired = Math.floor(totalMembers / 2) + 1;
-  const hasQuorum = presentCount >= quorumRequired;
+  const isSeguimiento = tipoReunion === "seguimiento";
+  const hasQuorum = isSeguimiento || presentCount >= quorumRequired;
 
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "consultor") {
@@ -221,11 +222,12 @@ export default function Committees() {
               </div>
               <div className="space-y-2">
                 <Label>Tipo de reunion</Label>
-                <Select value={tipoReunion} onValueChange={(v) => setTipoReunion(v as "ordinaria" | "extraordinaria")}>
+                <Select value={tipoReunion} onValueChange={(v) => setTipoReunion(v as "ordinaria" | "extraordinaria" | "seguimiento")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ordinaria">Ordinaria</SelectItem>
                     <SelectItem value="extraordinaria">Extraordinaria</SelectItem>
+                    <SelectItem value="seguimiento">Seguimiento</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -568,10 +570,16 @@ export default function Committees() {
             {members.length > 0 && (
               <div className={cn(
                 "flex items-center gap-2 mt-2 p-2 rounded-md text-sm font-medium",
-                hasQuorum ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
+                isSeguimiento ? "bg-blue-50 text-blue-800 border border-blue-200"
+                  : hasQuorum ? "bg-green-50 text-green-800 border border-green-200"
+                  : "bg-red-50 text-red-800 border border-red-200"
               )}>
-                {hasQuorum ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                {hasQuorum
+                {isSeguimiento ? <CheckCircle2 className="h-4 w-4" />
+                  : hasQuorum ? <CheckCircle2 className="h-4 w-4" />
+                  : <AlertTriangle className="h-4 w-4" />}
+                {isSeguimiento
+                  ? `Seguimiento — sin quorum requerido (${presentCount}/${totalMembers})`
+                  : hasQuorum
                   ? `Quorum alcanzado (${presentCount}/${totalMembers})`
                   : `Sin quorum: ${presentCount}/${totalMembers} (min. ${quorumRequired})`}
               </div>
@@ -670,6 +678,11 @@ export default function Committees() {
                     {a.hay_quorum !== undefined && (
                       <Badge variant={a.hay_quorum ? "default" : "destructive"} className="text-[10px]">
                         {a.hay_quorum ? "Con quorum" : "Sin quorum"}
+                      </Badge>
+                    )}
+                    {a.tipo_reunion === "seguimiento" && (
+                      <Badge variant="outline" className="text-[10px] gap-1 text-blue-600 border-blue-300">
+                        Seguimiento
                       </Badge>
                     )}
                     {a.generada_por_ia && (
