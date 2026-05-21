@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/common/PageHeader";
 
 // Sample data for template preview
 const SAMPLE_DATA: Record<string, string> = {
@@ -212,22 +213,16 @@ export default function EmailTemplates() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Mail className="h-6 w-6" />
-            Plantillas de Correo
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Personaliza las plantillas de correo electrónico para solicitudes y recordatorios.
-          </p>
-        </div>
-        <Button onClick={startCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nueva Plantilla
-        </Button>
-      </div>
+      <PageHeader
+        title="Plantillas de Correo"
+        description="Personaliza las plantillas de correo electronico para solicitudes y recordatorios."
+        actions={
+          <Button onClick={startCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nueva Plantilla
+          </Button>
+        }
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">

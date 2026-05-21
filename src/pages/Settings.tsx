@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Settings2, Save, Loader2, Globe, Mail, Calendar, FolderOpen, FileText, RefreshCw } from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
 
 type SettingGroup = {
   title: string;
@@ -150,23 +151,18 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Settings2 className="h-6 w-6" />
-            Configuración del Sistema
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Parámetros globales de la plataforma. Los cambios se aplican de inmediato.
-          </p>
-        </div>
-        {dirtyCount > 0 && (
-          <Button onClick={handleSaveAll} className="gap-2">
-            <Save className="h-4 w-4" />
-            Guardar {dirtyCount} cambio{dirtyCount > 1 ? "s" : ""}
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Configuracion del Sistema"
+        description="Parametros globales de la plataforma. Los cambios se aplican de inmediato."
+        actions={
+          dirtyCount > 0 ? (
+            <Button onClick={handleSaveAll} className="gap-2">
+              <Save className="h-4 w-4" />
+              Guardar {dirtyCount} cambio{dirtyCount > 1 ? "s" : ""}
+            </Button>
+          ) : undefined
+        }
+      />
 
       {SETTING_GROUPS.map((group) => {
         const Icon = group.icon;

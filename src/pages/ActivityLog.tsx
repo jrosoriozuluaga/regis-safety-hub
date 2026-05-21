@@ -35,6 +35,7 @@ import {
   HardHat,
 } from "lucide-react";
 import type { Empresa } from "@/types/domain";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const MODULO_ICONS: Record<string, React.ElementType> = {
   pila: FileText,
@@ -122,15 +123,10 @@ export default function ActivityLog() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <History className="h-6 w-6" />
-          Registro de Actividad
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Historial de acciones realizadas en la plataforma.
-        </p>
-      </div>
+      <PageHeader
+        title="Registro de Actividad"
+        description="Historial de acciones realizadas en la plataforma."
+      />
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

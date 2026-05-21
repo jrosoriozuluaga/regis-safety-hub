@@ -142,11 +142,6 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Cuentas de prueba</p>
-            <p>Admin · <code>admin@regiscolombia.com</code> · contraseña <code>regis2025</code></p>
-            <p>Cliente · NIT <code>900123456</code> · contraseña <code>cliente2025</code></p>
-          </div>
         </div>
       </div>
     </div>

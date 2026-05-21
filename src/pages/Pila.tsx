@@ -162,9 +162,7 @@ export default function Pila() {
         intento: (record.intentos_solicitud || 0) + 1,
         upload_link: uploadUrl,
       },
-    }).then(({ data }) => {
-      if (data?.success) console.log("Twilio WhatsApp also queued:", data.sid);
-    }).catch(() => {});
+    }).then(() => {}).catch(() => {});
 
     // Open wa.me link — always shows the message for visual confirmation
     const cleanPhone = whatsapp.replace(/[\s\-\(\)]/g, "").replace(/^\+/, "");

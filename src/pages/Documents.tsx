@@ -55,6 +55,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { logsService } from "@/services";
 import type { Empresa } from "@/types/domain";
+import { PageHeader } from "@/components/common/PageHeader";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -401,15 +402,10 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Documentos SG-SST</h1>
-          <p className="text-muted-foreground">
-            Gestión documental del Sistema de Gestión de Seguridad y Salud en el Trabajo
-          </p>
-        </div>
-
+      <PageHeader
+        title="Documentos SG-SST"
+        description="Gestion documental del Sistema de Gestion de Seguridad y Salud en el Trabajo."
+        actions={
         <Dialog open={uploadOpen} onOpenChange={(open) => { setUploadOpen(open); if (!open) resetUploadForm(); }}>
           <DialogTrigger asChild>
             <Button>
@@ -497,7 +493,8 @@ export default function Documents() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
