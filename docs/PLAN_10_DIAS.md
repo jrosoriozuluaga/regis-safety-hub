@@ -9,9 +9,65 @@
 
 ## CHANGELOG
 
-### 2026-05-21 — Dia 2: 4 Batches completados (A, B, C, D + E)
+### 2026-05-21 — Dia 2 (continuacion): Batches F, G, H, I + mejoras manuales
 
-**Resumen:** Dia 2 cerrado al 100%. 4 batches de desarrollo + 1 batch de limpieza.
+**Resumen:** 4 batches adicionales (F-I) + mejoras manuales. ~30 commits mas.
+Brief 100% cubierto: 8/8 criterios + 4/4 recomendaciones + 5/5 bonus + 10/10 pilares.
+Toggle Admin/Cliente mejorado con selector de empresa (commit aa22a94).
+Favicon + OG image configurados.
+
+#### Batch F — Observabilidad + Costos + Privacidad
+| Commit | Descripcion |
+|--------|-------------|
+| `4005632` | Dashboard observabilidad operativa (P8) |
+| `7ab25e6` | Fallback modelos baratos Haiku-Sonnet (P3) |
+| `450d80e` | Logging costos API (P3) |
+| `f9a75e4` | Aviso privacidad Ley 1581 en UploadPila (P5) |
+| `9e69fdb` | Bonus bitacora mensual + resumen semanal |
+
+#### Batch G — Asistencia digital + Compliance
+| Commit | Descripcion |
+|--------|-------------|
+| `9e9e31e` | Link asistencia digital comite (C4 gap cerrado) |
+| `e277ed3` | Compliance 7 vs 21 estandares verificado |
+| `96bc707` | Recordatorio firma actas (Bonus C) |
+| `b98d5fc` | Polish final video |
+
+#### Batch H — Diferenciadores finales
+| Commit | Descripcion |
+|--------|-------------|
+| `c45f20f` | Fireflies + Whisper - acta automatica (Bonus E) |
+| `4bc6c50` | Escalacion PILA - RRHH despues de 2 recordatorios |
+| `486c7bd` | Subir matriz aprobada ARL + compliance |
+| `a2394e9` | Tipo reunion "Seguimiento" |
+| `24b36a5` | Favicon + strings espanol |
+
+#### Batch I — UX sistemico
+| Commit | Descripcion |
+|--------|-------------|
+| `f9cbd28` | Toggle Admin/Cliente funcional |
+| `9b4b919` | Paginacion en 7 tablas |
+| `fc6dc27` | Skeleton loading states |
+| `c47dadf` | Tooltips en botones icon-only |
+| `bfb2beb` | EmptyState reutilizable |
+
+#### Mejoras manuales post-batches
+| Commit | Descripcion |
+|--------|-------------|
+| `a6780af` | Favicon Regis reemplaza Lovable |
+| `e44bafd` | OG image preview para compartir en chats |
+| `aa22a94` | ClientDashboard con selector empresa + PHVA + PILA |
+
+#### Migrations aplicadas (Dia 2 cont.)
+| # | Archivo | Descripcion |
+|---|---------|-------------|
+| 011 | `api_cost_log_DRAFT.sql` | Tabla costos API |
+| 012 | `asistencia_digital_policies_DRAFT.sql` | RLS anon asistencia comite |
+| 013 | `matriz_arl_aprobacion_DRAFT.sql` | Columnas ARL en matrices_riesgo |
+
+### 2026-05-21 — Dia 2: 5 Batches completados (A, B, C, D, E)
+
+**Resumen:** Dia 2 arrancado. 4 batches de desarrollo + 1 batch de limpieza.
 ~30 commits. 8/8 criterios + 4/4 recomendaciones cerrados. Migrations 005-009 aplicadas.
 Dias 2 a 7 del plan cubiertos en un solo dia real.
 
@@ -128,13 +184,14 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 | 5 | 24 mayo (sab) | Trazabilidad + config + role guards | ✅ COMPLETADO (Batch C) |
 | 6 | 25 mayo (dom) | C1 completo + P10 | ✅ COMPLETADO (Batch D) |
 | 7 | 26 mayo (lun) | Datos demo + limpieza | ✅ COMPLETADO (Batch D + E) |
-| 8 | 27 mayo (mar) | Bonus + demo prep | ⬜ PENDIENTE |
-| 9 | 28 mayo (mie) | Ensayo + fixes | ⬜ PENDIENTE |
-| 10 | 29 mayo (jue) | GRABAR VIDEO | ⬜ PENDIENTE |
-| 11 | 30 mayo (vie) | Buffer | — |
+| 8 | 27 mayo (mar) | Ensayo + preparacion | ⬜ PENDIENTE |
+| 9 | 28 mayo (mie) | GRABAR VIDEO | ⬜ PENDIENTE |
+| 10 | 29 mayo (jue) | Buffer | — |
 
 **Dias 1-7: COMPLETADOS en 2 dias reales (20 y 21 mayo)**
-**Dias 8-10: pendientes (bonus + ensayo + video)**
+**Dia 8: Ensayo (5 PDFs examenes, Fireflies test, Outlook test, dry-run 25 min)**
+**Dia 9: Grabar video final + subir a YouTube**
+**Dia 10: Buffer por si se necesita re-grabar**
 
 ---
 
@@ -142,21 +199,25 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 
 ### Pendientes tecnicos
 - [ ] Migration 010 (pg_cron) — verificar si free tier de Supabase soporta pg_cron
-- [ ] Deploy Edge Function modificada: `process-exam-pdf` (T44)
-- [ ] Crear usuario cliente Construandes para demo multi-tenant
-- [ ] Limpiar examenes medicos duplicados en DB (si existen)
-- [ ] Resetear password admin@saborcriollo.com (para demo)
+- [x] Deploy Edge Functions (process-exam-pdf, generate-acta, fetch-fireflies-transcripts, generate-bitacora, weekly-summary)
+- [x] Crear usuario cliente Construandes para demo multi-tenant
+- [x] Resetear password admin@saborcriollo.com (Demo2026!)
+- [x] Migrations 011-013 aplicadas
 
 ### Pendientes del video
-- [ ] Ensayo completo del demo (25 min max)
+- [ ] Ensayo completo del demo (dry-run 25 min)
+- [ ] Preparar 5 PDFs examenes distintos para el video
+- [ ] Grabar reunion test con Fireflies
+- [ ] Probar email con Outlook/Hotmail
 - [ ] Grabar video final
-- [ ] Subir video + entrega
+- [ ] Subir a YouTube + entregar en plataforma Aztec
 
 ### Pendientes opcionales (bonus)
-- [ ] Cron bitacora mensual + resumen semanal (8.1)
-- [ ] Vista observabilidad AdminDashboard (8.2)
-- [ ] Remove test credentials Login.tsx (2.7)
-- [ ] Aplicar seed_data_DRAFT.sql para datos demo mas coherentes
+- [x] Cron bitacora mensual + resumen semanal (Batch F)
+- [x] Vista observabilidad AdminDashboard (Batch F)
+- [x] Fireflies + Whisper transcripcion reuniones (Batch H)
+- [x] Escalacion PILA a RRHH (Batch H)
+- [x] Paginacion + skeletons + tooltips + empty states (Batch I)
 
 ---
 
@@ -200,6 +261,37 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 
 ---
 
+## Componentes reutilizables creados
+
+| Componente | Ruta | Descripcion |
+|------------|------|-------------|
+| `TablePagination` + `usePagination` | `src/components/common/TablePagination.tsx` | Paginacion cliente + hook |
+| `PageSkeleton` | `src/components/common/Skeletons.tsx` | Skeleton pagina completa |
+| `TableSkeleton` | `src/components/common/Skeletons.tsx` | Skeleton tabla datos |
+| `KpiCardSkeleton` | `src/components/common/Skeletons.tsx` | Skeleton tarjeta KPI |
+| `EmptyState` | `src/components/common/EmptyState.tsx` | Estado vacio reutilizable |
+| `PageHeader` | `src/components/common/PageHeader.tsx` | Header pagina consistente |
+| `StatusBadge` | `src/components/common/StatusBadge.tsx` | Badge de estado reutilizable |
+| `FileDropzone` | `src/components/common/FileDropzone.tsx` | Zona de upload archivos |
+| `OnboardingChecklist` | `src/components/common/OnboardingChecklist.tsx` | Checklist primeros pasos |
+
+---
+
+## Edge Functions
+
+| Funcion | Auth | Descripcion |
+|---------|------|-------------|
+| `generate-acta` | JWT | Actas comite con soporte transcripcion (Fireflies/Whisper) |
+| `process-exam-pdf` | JWT | Extraccion IA examenes — deteccion no-medico + confianza |
+| `transcribe-audio` | JWT | Whisper transcripcion + Claude analisis vulnerabilidad |
+| `fetch-fireflies-transcripts` | no-jwt | Importar transcripciones de Fireflies.ai |
+| `send-pila-reminder` | no-jwt | Email via Resend con templates |
+| `send-whatsapp-reminder` | no-jwt | WhatsApp via Twilio |
+| `generate-bitacora` | no-jwt | Reporte mensual de actividad |
+| `weekly-summary` | no-jwt | Resumen semanal consultor |
+
+---
+
 ## Lo que NO se hace en estos 10 dias
 
 - Migracion de n8n Gmail a Outlook (Resend ya es neutral)
@@ -207,7 +299,7 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 - Materialized views (query directo suficiente para 3 empresas)
 - Magic links de onboarding
 - Firma electronica real (DocuSign/FirmaVirtual)
-- Integracion Fireflies para transcripcion videollamadas
+- ~~Integracion Fireflies para transcripcion videollamadas~~ HECHO (Batch H)
 - Whisper local (Whisper API suficiente)
 - React Query en todas las paginas
 - Test suite (no justifica para concurso)
