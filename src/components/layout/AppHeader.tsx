@@ -84,22 +84,32 @@ export function AppHeader() {
       <SidebarTrigger />
       <div className="flex-1" />
 
-      {/* View toggle (prototyping) */}
-      <div className="hidden sm:flex items-center rounded-md border bg-muted/50 p-0.5 text-xs">
-        {(["admin", "client"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={cn(
-              "px-3 py-1.5 rounded-[5px] font-medium flex items-center gap-1.5 transition-colors",
-              mode === m ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {m === "admin" ? <Shield className="h-3.5 w-3.5" /> : <UserCircle2 className="h-3.5 w-3.5" />}
-            {m === "admin" ? "Admin" : "Cliente"}
-          </button>
-        ))}
-      </div>
+      {/* View toggle — only for admin/consultor */}
+      {(user?.role === "admin" || user?.role === "consultor") && (
+        <>
+          {mode === "client" && (
+            <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 bg-amber-50 gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Vista previa cliente
+            </Badge>
+          )}
+          <div className="hidden sm:flex items-center rounded-md border bg-muted/50 p-0.5 text-xs">
+            {(["admin", "client"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  "px-3 py-1.5 rounded-[5px] font-medium flex items-center gap-1.5 transition-colors",
+                  mode === m ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m === "admin" ? <Shield className="h-3.5 w-3.5" /> : <UserCircle2 className="h-3.5 w-3.5" />}
+                {m === "admin" ? "Admin" : "Cliente"}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

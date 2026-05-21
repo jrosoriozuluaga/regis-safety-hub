@@ -1,6 +1,7 @@
 import { Building2, FileText, Stethoscope, ShieldAlert, Users, Siren, ClipboardCheck, Briefcase, UserCog, HardHat, Settings2, History, CalendarDays, FileBarChart, Mail, FolderOpen, Flame, Activity } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useViewMode } from "@/context/ViewModeContext";
 import {
   Sidebar,
   SidebarContent,
@@ -44,7 +45,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "consultor";
+  const { mode } = useViewMode();
+  const isRealAdmin = user?.role === "admin" || user?.role === "consultor";
+  const isAdmin = isRealAdmin && mode === "admin";
   const isActive = (path: string) => (path === "/" ? pathname === "/" : pathname.startsWith(path));
 
   return (
