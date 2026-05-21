@@ -947,7 +947,7 @@ export default function Companies() {
                             <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 hover:bg-amber-100">Actualizar</Badge>
                           )}
                           {row.status === "error" && (
-                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Error</Badge>
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Error en datos</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-sm max-w-[160px] truncate">{row.data.razon_social || <span className="text-red-400 italic">vacío</span>}</TableCell>

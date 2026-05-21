@@ -705,7 +705,7 @@ export default function Workers() {
                         <TableCell>
                           {row.status === "nueva" && <Badge variant="default" className="text-[10px] px-1.5 py-0">Nuevo</Badge>}
                           {row.status === "actualizar" && <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 hover:bg-amber-100">Actualizar</Badge>}
-                          {row.status === "error" && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Error</Badge>}
+                          {row.status === "error" && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Error en datos</Badge>}
                         </TableCell>
                         <TableCell className="text-sm">{row.data.nombre || <span className="text-red-400 italic">vacío</span>}</TableCell>
                         <TableCell className="font-mono text-xs">{row.data.cedula || <span className="text-red-400 italic">vacío</span>}</TableCell>
