@@ -51,38 +51,69 @@ Deno.serve(async (req) => {
     const tipo_comite_nombre = comite.tipo === "copasst" ? "COPASST"
       : comite.tipo === "convivencia" ? "Comité de Convivencia Laboral" : "Vigía de SST";
 
-    // Try AI generation with model fallback
+    // Try AI generation — P3: cheap model first, escalate if result is poor
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     let actaContent = "";
     let usedAI = false;
+    let modeloUsado = "";
+    const t0 = Date.now();
 
     if (anthropicKey) {
       const prompt = `Eres un especialista en Seguridad y Salud en el Trabajo (SG-SST) en Colombia. Genera el acta de una reunión ${tipo_reunion} del ${tipo_comite_nombre} de la empresa ${empresa.razon_social}.\n\nDATOS DE LA REUNIÓN:\n- Fecha: ${fecha_reunion}\n- Hora: ${hora_inicio || "09:00"} a ${hora_fin || "10:00"}\n- Lugar: ${lugar || empresa.ciudad}\n- Número de acta: ${numero_acta}\n- NIT: ${empresa.nit}\n- Ciudad: ${empresa.ciudad}\n\nINTEGRANTES DEL COMITÉ:\n${JSON.stringify(integrantes?.map((i: any) => ({ nombre: i.nombre, cargo_empresa: i.cargo_empresa, rol_comite: i.rol_comite, es_principal: i.es_principal })), null, 2)}\n\nASISTENTES A ESTA REUNIÓN:\n${JSON.stringify(asistentes.map((a: any) => ({ nombre: a.nombre, cargo_empresa: a.cargo_empresa, rol_comite: a.rol_comite })), null, 2)}\n\nPUNTOS TRATADOS:\n${JSON.stringify(puntos_json, null, 2)}\n\nINSTRUCCIONES:\n1. Genera el acta completa con formato estándar colombiano.\n2. Verifica el quórum: se requiere mitad + 1 de los integrantes principales. Hay quórum: ${hay_quorum ? "Sí" : "No"}.\n3. Para cada punto tratado, desarrolla el contenido con redacción formal y técnica.\n4. Si es una reunión ordinaria, incluye temas típicos del ${tipo_comite_nombre}.\n5. Incluye sección de firmas al final.\n\nFORMATO: Responde con el texto completo del acta en markdown.`;
 
-      const MODEL_CASCADE = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"];
-      for (const model of MODEL_CASCADE) {
+      const CHEAP_MODEL = "claude-haiku-4-5-20251001";
+      const PREMIUM_MODEL = "claude-sonnet-4-20250514";
+
+      async function tryModel(model: string): Promise<string | null> {
         try {
-          const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-api-key": anthropicKey,
+              "x-api-key": anthropicKey!,
               "anthropic-version": "2023-06-01",
             },
             body: JSON.stringify({ model, max_tokens: 4096, messages: [{ role: "user", content: prompt }] }),
           });
-          if (claudeRes.ok) {
-            const claudeData = await claudeRes.json();
-            actaContent = claudeData.content[0].text;
-            usedAI = true;
-            break;
+          if (res.ok) {
+            const data = await res.json();
+            return data.content[0].text;
           }
-          const errText = await claudeRes.text();
-          console.error(`Model ${model} failed: ${errText.substring(0, 200)}`);
-          if (claudeRes.status !== 404) break;
-        } catch (e) { console.error(`Model ${model} exception:`, e); }
+          console.error(`Model ${model} failed: ${res.status}`);
+          return null;
+        } catch (e) { console.error(`Model ${model} exception:`, e); return null; }
+      }
+
+      // Try cheap first
+      const cheapResult = await tryModel(CHEAP_MODEL);
+      if (cheapResult && cheapResult.length >= 500) {
+        actaContent = cheapResult;
+        usedAI = true;
+        modeloUsado = CHEAP_MODEL;
+      } else if (cheapResult && cheapResult.length < 500) {
+        // Acta too short — escalate to Sonnet
+        console.log("Haiku acta too short, escalating to Sonnet...");
+        const premiumResult = await tryModel(PREMIUM_MODEL);
+        if (premiumResult) {
+          actaContent = premiumResult;
+          modeloUsado = PREMIUM_MODEL;
+        } else {
+          actaContent = cheapResult; // Use short result as fallback
+          modeloUsado = CHEAP_MODEL;
+        }
+        usedAI = true;
+      } else {
+        // Haiku failed entirely — try Sonnet
+        const premiumResult = await tryModel(PREMIUM_MODEL);
+        if (premiumResult) {
+          actaContent = premiumResult;
+          usedAI = true;
+          modeloUsado = PREMIUM_MODEL;
+        }
       }
     }
+
+    const tiempoProcesamiento = Date.now() - t0;
 
     // Template-based fallback
     if (!actaContent) {
@@ -116,7 +147,14 @@ Deno.serve(async (req) => {
 
     if (actaErr) throw new Error("Error saving acta: " + actaErr.message);
 
-    return new Response(JSON.stringify({ acta, contenido: actaContent, ai_used: usedAI }), {
+    const costoEstimado = modeloUsado.includes("haiku") ? 0.005 : modeloUsado.includes("sonnet") ? 0.01 : 0;
+
+    return new Response(JSON.stringify({
+      acta, contenido: actaContent, ai_used: usedAI,
+      modelo_usado: modeloUsado || null,
+      costo_estimado_usd: costoEstimado,
+      tiempo_procesamiento_ms: tiempoProcesamiento,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

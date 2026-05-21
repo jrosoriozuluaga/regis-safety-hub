@@ -94,33 +94,63 @@ Deno.serve(async (req) => {
 
     let analisis_json: any = null;
     let aiUsed = false;
+    let modeloUsado = "";
+    const t0 = Date.now();
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
     if (anthropicKey && transcripcion.length > 50) {
       const analysisPrompt = `Eres un especialista en SG-SST en Colombia. Basado en esta transcripción de audio, genera un análisis de vulnerabilidad JSON.\n\nEMPRESA: ${empresaInfo || "No disponible"}\n\nTRANSCRIPCIÓN:\n${transcripcion}\n\nGenera JSON con: resumen_ejecutivo, amenazas_identificadas[{tipo,amenaza,probabilidad,descripcion}], analisis_vulnerabilidad{personas{nivel,hallazgos[]},recursos{nivel,hallazgos[]},procesos{nivel,hallazgos[]}}, nivel_riesgo_global, recomendaciones[{prioridad,accion,responsable_sugerido,plazo_sugerido}], recursos_emergencia{extintores,botiquines,rutas_evacuacion,punto_encuentro,brigada}. Solo JSON válido.`;
 
-      const MODEL_CASCADE = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"];
-      for (const model of MODEL_CASCADE) {
+      // P3: Try cheap model first, escalate if needed
+      const CHEAP_MODEL = "claude-haiku-4-5-20251001";
+      const PREMIUM_MODEL = "claude-sonnet-4-20250514";
+
+      async function tryAnalysis(model: string): Promise<any | null> {
         try {
-          const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-api-key": anthropicKey,
+              "x-api-key": anthropicKey!,
               "anthropic-version": "2023-06-01",
             },
             body: JSON.stringify({ model, max_tokens: 4096, messages: [{ role: "user", content: analysisPrompt }] }),
           });
-          if (claudeRes.ok) {
-            const data = await claudeRes.json();
-            analisis_json = extractJSON(data.content[0].text);
-            aiUsed = true;
-            break;
+          if (res.ok) {
+            const data = await res.json();
+            return extractJSON(data.content[0].text);
           }
-          if (claudeRes.status !== 404) break;
-        } catch (e) { console.error(`Model ${model} error:`, e); }
+          console.error(`Model ${model} failed: ${res.status}`);
+          return null;
+        } catch (e) { console.error(`Model ${model} error:`, e); return null; }
+      }
+
+      const cheapResult = await tryAnalysis(CHEAP_MODEL);
+      if (cheapResult && cheapResult.amenazas_identificadas?.length > 0) {
+        analisis_json = cheapResult;
+        aiUsed = true;
+        modeloUsado = CHEAP_MODEL;
+      } else {
+        // Haiku failed or produced empty analysis — try Sonnet
+        console.log("Escalating analysis to Sonnet...");
+        const premiumResult = await tryAnalysis(PREMIUM_MODEL);
+        if (premiumResult) {
+          analisis_json = premiumResult;
+          aiUsed = true;
+          modeloUsado = PREMIUM_MODEL;
+        } else if (cheapResult) {
+          analisis_json = cheapResult;
+          aiUsed = true;
+          modeloUsado = CHEAP_MODEL;
+        }
       }
     }
+
+    const tiempoProcesamiento = Date.now() - t0;
+    // Estimate audio duration from file size (~16KB/s for webm)
+    const audioDuracionSeg = audioFile ? Math.round(audioFile.size / 16000) : 0;
+    const costoWhisper = whisperUsed ? (audioDuracionSeg / 60) * 0.006 : 0;
+    const costoClaude = modeloUsado.includes("haiku") ? 0.003 : modeloUsado.includes("sonnet") ? 0.01 : 0;
 
     if (!analisis_json) {
       console.log("Using template fallback for vulnerability analysis");
@@ -193,6 +223,10 @@ Deno.serve(async (req) => {
       message: whisperUsed ? "Audio transcrito y analizado exitosamente" : "Análisis generado (transcripción manual o fallback)",
       whisper_used: whisperUsed,
       ai_used: aiUsed,
+      modelo_usado: modeloUsado || null,
+      costo_estimado_usd: +(costoWhisper + costoClaude).toFixed(6),
+      tiempo_procesamiento_ms: tiempoProcesamiento,
+      audio_duracion_seg: audioDuracionSeg,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

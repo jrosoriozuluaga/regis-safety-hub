@@ -151,42 +151,57 @@ Extrae la información en el mismo formato JSON anterior. Si realmente no puedes
       }
     }
 
+    let modeloUsado = "";
+    const t0 = Date.now();
+
     if (anthropicKey) {
-      const MODEL_CASCADE = [
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5-20251001",
-      ];
+      // P3: Try cheap model first, escalate only if confidence is low
+      const CHEAP_MODEL = "claude-haiku-4-5-20251001";
+      const PREMIUM_MODEL = "claude-sonnet-4-20250514";
 
-      for (const model of MODEL_CASCADE) {
-        console.log(`Trying model: ${model}`);
-        const result = await callClaude(model, extractionPrompt, pdfBase64, anthropicKey);
-        if (result.ok && result.data) {
-          extracted = result.data;
-          usedAI = true;
-          console.log(`Success with model: ${model}`);
+      console.log(`Trying cheap model: ${CHEAP_MODEL}`);
+      const cheapResult = await callClaude(CHEAP_MODEL, extractionPrompt, pdfBase64, anthropicKey);
 
-          // If confidence is low and document is a medical exam, retry with detailed prompt
-          if (extracted.es_examen_medico !== false && extracted.confianza_extraccion === "baja") {
-            console.log("Low confidence extraction, retrying with detailed prompt...");
-            const retryResult = await callClaude(model, retryPrompt, pdfBase64, anthropicKey);
-            if (retryResult.ok && retryResult.data) {
-              const retryConf = retryResult.data.confianza_extraccion;
-              // Use retry result only if it's better
-              if (retryConf === "alta" || retryConf === "media") {
-                extracted = retryResult.data;
-                console.log(`Retry improved confidence to: ${retryConf}`);
-              }
+      if (cheapResult.ok && cheapResult.data) {
+        extracted = cheapResult.data;
+        usedAI = true;
+        modeloUsado = CHEAP_MODEL;
+        console.log(`Haiku success, confidence: ${extracted.confianza_extraccion}`);
+
+        // Escalate to Sonnet if confidence is low/medium AND it's a medical exam
+        const needsEscalation = extracted.es_examen_medico !== false &&
+          (extracted.confianza_extraccion === "baja" || extracted.confianza_extraccion === "media");
+
+        if (needsEscalation) {
+          console.log("Low confidence — escalating to premium model...");
+          const premiumResult = await callClaude(PREMIUM_MODEL, extractionPrompt, pdfBase64, anthropicKey);
+          if (premiumResult.ok && premiumResult.data) {
+            const premConf = premiumResult.data.confianza_extraccion;
+            if (premConf === "alta" || premConf === "media") {
+              extracted = premiumResult.data;
+              modeloUsado = PREMIUM_MODEL;
+              console.log(`Escalation improved confidence to: ${premConf}`);
             }
+          } else if (premiumResult.error) {
+            aiErrors.push(premiumResult.error);
           }
-          break;
         }
-        if (result.error) {
-          aiErrors.push(result.error);
-          console.error(`Model ${model} failed`);
-          if (result.error.includes("(401)")) break;
+      } else {
+        // Haiku failed entirely — try Sonnet as fallback
+        if (cheapResult.error) aiErrors.push(cheapResult.error);
+        console.log(`Haiku failed, trying ${PREMIUM_MODEL}...`);
+        const fallbackResult = await callClaude(PREMIUM_MODEL, extractionPrompt, pdfBase64, anthropicKey);
+        if (fallbackResult.ok && fallbackResult.data) {
+          extracted = fallbackResult.data;
+          usedAI = true;
+          modeloUsado = PREMIUM_MODEL;
+        } else if (fallbackResult.error) {
+          aiErrors.push(fallbackResult.error);
         }
       }
     }
+
+    const tiempoProcesamiento = Date.now() - t0;
 
     // Fallback: basic text extraction
     if (!extracted) {
@@ -303,12 +318,17 @@ Extrae la información en el mismo formato JSON anterior. Si realmente no puedes
       message = "PDF procesado con extracción básica (IA no disponible)";
     }
 
+    const costoEstimado = modeloUsado.includes("haiku") ? 0.003 : modeloUsado.includes("sonnet") ? 0.02 : 0;
+
     return new Response(JSON.stringify({
       extracted, examen: savedExamen,
       es_examen_medico: extracted.es_examen_medico ?? true,
       confianza_extraccion: extracted.confianza_extraccion || "baja",
       message,
       ai_used: usedAI, ai_errors: aiErrors.length > 0 ? aiErrors : undefined,
+      modelo_usado: modeloUsado || null,
+      costo_estimado_usd: costoEstimado,
+      tiempo_procesamiento_ms: tiempoProcesamiento,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err) {
