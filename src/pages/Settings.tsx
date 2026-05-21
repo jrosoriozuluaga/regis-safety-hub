@@ -108,7 +108,7 @@ export default function SettingsPage() {
     },
     onError: (err: any, { clave }) => {
       setSavingKeys((prev) => { const n = new Set(prev); n.delete(clave); return n; });
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Error al guardar", description: err.message, variant: "destructive" });
     },
   });
 
