@@ -1,10 +1,13 @@
-import { useEffect, useState, useRef } from "react";
-import { Wand2, Printer } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { Wand2, Printer, Plus, Pencil, Save, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { empresasService, matricesService, riesgosTipicosService, logsService } from "@/services";
@@ -13,8 +16,17 @@ import { useAuth } from "@/context/AuthContext";
 import { getExportHeaderHTML, getExportFooterHTML, injectLogoIntoWindow } from "@/lib/exportHeader";
 import logo from "@/assets/regis-logo.jpeg";
 
+/* ─── GTC 45 helpers ─── */
+
 function calcNP(nd: number, ne: number) { return nd * ne; }
 function calcNR(nd: number, ne: number, nc: number) { return nd * ne * nc; }
+
+function interpretNR(nr: number): string {
+  if (nr >= 600) return "I";
+  if (nr >= 150) return "II";
+  if (nr >= 40) return "III";
+  return "IV";
+}
 
 function interpretAceptabilidad(nr: number): string {
   if (nr <= 20) return "aceptable";
@@ -23,12 +35,62 @@ function interpretAceptabilidad(nr: number): string {
   return "no_aceptable";
 }
 
-const aceptabilidadColor: Record<string, string> = {
-  aceptable: "text-green-700 bg-green-50",
-  mejorable: "text-yellow-700 bg-yellow-50",
-  no_aceptable_si: "text-orange-700 bg-orange-50",
-  no_aceptable: "text-red-700 bg-red-50",
+const aceptabilidadLabel: Record<string, string> = {
+  aceptable: "Aceptable",
+  mejorable: "Mejorable",
+  no_aceptable_si: "No Aceptable",
+  no_aceptable: "No Aceptable",
 };
+
+const aceptabilidadColor: Record<string, string> = {
+  aceptable: "bg-green-100 text-green-800 border-green-300",
+  mejorable: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  no_aceptable_si: "bg-orange-100 text-orange-800 border-orange-300",
+  no_aceptable: "bg-red-100 text-red-800 border-red-300",
+};
+
+const ND_OPTIONS = [
+  { value: 0, label: "0 – No deficiente" },
+  { value: 2, label: "2 – Bajo" },
+  { value: 6, label: "6 – Medio" },
+  { value: 10, label: "10 – Alto" },
+];
+const NE_OPTIONS = [
+  { value: 1, label: "1 – Esporádica" },
+  { value: 2, label: "2 – Ocasional" },
+  { value: 3, label: "3 – Frecuente" },
+  { value: 4, label: "4 – Continua" },
+];
+const NC_OPTIONS = [
+  { value: 10, label: "10 – Leve" },
+  { value: 25, label: "25 – Grave" },
+  { value: 60, label: "60 – Muy grave" },
+  { value: 100, label: "100 – Mortal" },
+];
+
+/* ─── empty row template ─── */
+
+function emptyRiesgo(matrizId: string): Partial<RiesgoMatriz> & { matriz_id: string; _isNew?: boolean } {
+  return {
+    matriz_id: matrizId,
+    categoria_peligro: "",
+    descripcion_peligro: "",
+    fuente_peligro: "",
+    efectos_posibles: "",
+    nivel_deficiencia: 6,
+    nivel_exposicion: 3,
+    nivel_consecuencia: 25,
+    aceptabilidad: "no_aceptable_si",
+    control_fuente: "",
+    control_medio: "",
+    control_individuo: "",
+    medida_administrativa: "",
+    medida_epp: "",
+    _isNew: true,
+  };
+}
+
+/* ─── component ─── */
 
 export default function RiskMatrices() {
   const { user } = useAuth();
@@ -38,6 +100,11 @@ export default function RiskMatrices() {
   const [selectedMatriz, setSelectedMatriz] = useState<string | null>(null);
   const [riesgos, setRiesgos] = useState<RiesgoMatriz[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<RiesgoMatriz>>({});
+  const [addingNew, setAddingNew] = useState(false);
+  const [newDraft, setNewDraft] = useState<ReturnType<typeof emptyRiesgo> | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,6 +119,9 @@ export default function RiskMatrices() {
 
   const handleSelectMatriz = async (matrizId: string) => {
     setSelectedMatriz(matrizId);
+    setEditingId(null);
+    setAddingNew(false);
+    setNewDraft(null);
     const data = await matricesService.getRiesgos(matrizId);
     setRiesgos(data);
   };
@@ -113,6 +183,112 @@ export default function RiskMatrices() {
       setLoading(false);
     }
   };
+
+  /* ─── Edit handlers ─── */
+
+  const startEdit = (r: RiesgoMatriz) => {
+    setEditingId(r.id);
+    setAddingNew(false);
+    setNewDraft(null);
+    setEditDraft({
+      descripcion_peligro: r.descripcion_peligro,
+      fuente_peligro: r.fuente_peligro,
+      categoria_peligro: r.categoria_peligro,
+      efectos_posibles: r.efectos_posibles,
+      nivel_deficiencia: r.nivel_deficiencia,
+      nivel_exposicion: r.nivel_exposicion,
+      nivel_consecuencia: r.nivel_consecuencia,
+      control_fuente: r.control_fuente || "",
+      control_medio: r.control_medio || "",
+      control_individuo: r.control_individuo || "",
+      medida_administrativa: r.medida_administrativa || "",
+      medida_epp: r.medida_epp || "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft({});
+  };
+
+  const saveEdit = async (riesgoId: string) => {
+    setSavingId(riesgoId);
+    try {
+      const nd = editDraft.nivel_deficiencia ?? 0;
+      const ne = editDraft.nivel_exposicion ?? 1;
+      const nc = editDraft.nivel_consecuencia ?? 10;
+      const nr = calcNR(nd, ne, nc);
+      const updates = {
+        ...editDraft,
+        aceptabilidad: interpretAceptabilidad(nr),
+      };
+      await matricesService.updateRiesgo(riesgoId, updates);
+      setRiesgos(prev => prev.map(r => r.id === riesgoId ? { ...r, ...updates } as RiesgoMatriz : r));
+      setEditingId(null);
+      setEditDraft({});
+      toast.success("Riesgo actualizado");
+    } catch (err: any) {
+      toast.error(err.message || "Error al guardar");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  /* ─── Add new row ─── */
+
+  const startAddNew = () => {
+    if (!selectedMatriz) return;
+    setAddingNew(true);
+    setEditingId(null);
+    setNewDraft(emptyRiesgo(selectedMatriz));
+  };
+
+  const cancelAddNew = () => {
+    setAddingNew(false);
+    setNewDraft(null);
+  };
+
+  const saveNewRiesgo = async () => {
+    if (!newDraft || !selectedMatriz) return;
+    if (!newDraft.descripcion_peligro?.trim()) {
+      toast.error("La descripción del peligro es obligatoria");
+      return;
+    }
+    setSavingId("__new__");
+    try {
+      const nd = newDraft.nivel_deficiencia ?? 6;
+      const ne = newDraft.nivel_exposicion ?? 3;
+      const nc = newDraft.nivel_consecuencia ?? 25;
+      const nr = calcNR(nd, ne, nc);
+      const row = {
+        matriz_id: selectedMatriz,
+        categoria_peligro: newDraft.categoria_peligro || "General",
+        descripcion_peligro: newDraft.descripcion_peligro || "",
+        fuente_peligro: newDraft.fuente_peligro || "",
+        efectos_posibles: newDraft.efectos_posibles || "",
+        nivel_deficiencia: nd,
+        nivel_exposicion: ne,
+        nivel_consecuencia: nc,
+        aceptabilidad: interpretAceptabilidad(nr),
+        control_fuente: newDraft.control_fuente || null,
+        control_medio: newDraft.control_medio || null,
+        control_individuo: newDraft.control_individuo || null,
+        medida_administrativa: newDraft.medida_administrativa || null,
+        medida_epp: newDraft.medida_epp || null,
+      };
+      const created = await matricesService.insertRiesgo(row);
+      setRiesgos(prev => [...prev, created]);
+      setAddingNew(false);
+      setNewDraft(null);
+      toast.success("Nuevo riesgo agregado a la matriz");
+    } catch (err: any) {
+      toast.error(err.message || "Error al agregar riesgo");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  /* ─── Print/Export ─── */
 
   const handlePrint = () => {
     const matrizInfo = matrices.find(m => m.id === selectedMatriz);
@@ -188,6 +364,115 @@ ${getExportFooterHTML()}
     setTimeout(() => printWindow.print(), 500);
   };
 
+  /* ─── Inline edit row renderer ─── */
+
+  function renderEditableRow(
+    draft: Partial<RiesgoMatriz>,
+    setDraft: (fn: (prev: Partial<RiesgoMatriz>) => Partial<RiesgoMatriz>) => void,
+    onSave: () => void,
+    onCancel: () => void,
+    saving: boolean,
+    isNew: boolean,
+  ) {
+    const nd = draft.nivel_deficiencia ?? 6;
+    const ne = draft.nivel_exposicion ?? 3;
+    const nc = draft.nivel_consecuencia ?? 25;
+    const np = calcNP(nd, ne);
+    const nr = calcNR(nd, ne, nc);
+    const acept = interpretAceptabilidad(nr);
+    const nivel = interpretNR(nr);
+
+    return (
+      <TableRow className="bg-primary/5">
+        <TableCell className="align-top">
+          <Input
+            value={draft.descripcion_peligro || ""}
+            onChange={e => setDraft(d => ({ ...d, descripcion_peligro: e.target.value }))}
+            placeholder="Descripción del peligro"
+            className="text-sm mb-1"
+          />
+          <Input
+            value={draft.categoria_peligro || ""}
+            onChange={e => setDraft(d => ({ ...d, categoria_peligro: e.target.value }))}
+            placeholder="Categoría"
+            className="text-xs"
+          />
+        </TableCell>
+        <TableCell className="align-top">
+          <Input
+            value={draft.fuente_peligro || ""}
+            onChange={e => setDraft(d => ({ ...d, fuente_peligro: e.target.value }))}
+            placeholder="Fuente del peligro"
+            className="text-sm"
+          />
+        </TableCell>
+        <TableCell className="align-top">
+          <Select
+            value={String(nd)}
+            onValueChange={v => setDraft(d => ({ ...d, nivel_deficiencia: Number(v) }))}
+          >
+            <SelectTrigger className="w-20 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ND_OPTIONS.map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="align-top">
+          <Select
+            value={String(ne)}
+            onValueChange={v => setDraft(d => ({ ...d, nivel_exposicion: Number(v) }))}
+          >
+            <SelectTrigger className="w-20 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {NE_OPTIONS.map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="text-center tabular-nums font-medium">{np}</TableCell>
+        <TableCell className="align-top">
+          <Select
+            value={String(nc)}
+            onValueChange={v => setDraft(d => ({ ...d, nivel_consecuencia: Number(v) }))}
+          >
+            <SelectTrigger className="w-20 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {NC_OPTIONS.map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="text-center tabular-nums font-bold">{nr}</TableCell>
+        <TableCell>
+          <Badge variant="outline" className={`${aceptabilidadColor[acept] || ""} text-xs`}>
+            {nivel} – {aceptabilidadLabel[acept] || acept}
+          </Badge>
+        </TableCell>
+        <TableCell className="align-top">
+          <Textarea
+            value={[draft.control_fuente, draft.control_medio, draft.control_individuo].filter(Boolean).join("\n") || ""}
+            onChange={e => {
+              const lines = e.target.value.split("\n");
+              setDraft(d => ({ ...d, control_fuente: lines[0] || "", control_medio: lines[1] || "", control_individuo: lines[2] || "" }));
+            }}
+            placeholder="Controles (uno por línea)"
+            className="text-xs min-h-[60px]"
+          />
+        </TableCell>
+        <TableCell className="align-top">
+          <div className="flex gap-1">
+            <Button size="sm" variant="default" onClick={onSave} disabled={saving} className="gap-1">
+              <Save className="h-3 w-3" /> {saving ? "..." : "Guardar"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  /* ─── Render ─── */
+
   return (
     <div>
       <PageHeader
@@ -239,35 +524,69 @@ ${getExportFooterHTML()}
         <Card className="shadow-card lg:col-span-2" ref={printRef}>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Detalle de riesgos</CardTitle>
-            {riesgos.length > 0 && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={handlePrint}>
-                <Printer className="h-4 w-4" /> Exportar PDF
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {selectedMatriz && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={startAddNew} disabled={addingNew}>
+                  <Plus className="h-4 w-4" /> Agregar riesgo
+                </Button>
+              )}
+              {riesgos.length > 0 && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={handlePrint}>
+                  <Printer className="h-4 w-4" /> Exportar PDF
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0">
-            {riesgos.length > 0 ? (
+            {riesgos.length > 0 || addingNew ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Peligro</TableHead>
-                      <TableHead>Fuente</TableHead>
-                      <TableHead className="text-center">ND</TableHead>
-                      <TableHead className="text-center">NE</TableHead>
-                      <TableHead className="text-center">NP</TableHead>
-                      <TableHead className="text-center">NC</TableHead>
-                      <TableHead className="text-center">NR</TableHead>
-                      <TableHead>Aceptabilidad</TableHead>
-                      <TableHead>Controles</TableHead>
+                      <TableHead className="min-w-[180px]">Peligro</TableHead>
+                      <TableHead className="min-w-[120px]">Fuente</TableHead>
+                      <TableHead className="text-center w-16">ND</TableHead>
+                      <TableHead className="text-center w-16">NE</TableHead>
+                      <TableHead className="text-center w-12">NP</TableHead>
+                      <TableHead className="text-center w-16">NC</TableHead>
+                      <TableHead className="text-center w-12">NR</TableHead>
+                      <TableHead className="w-28">Nivel</TableHead>
+                      <TableHead className="min-w-[150px]">Controles</TableHead>
+                      <TableHead className="w-24">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                    {/* New row at top when adding */}
+                    {addingNew && newDraft && renderEditableRow(
+                      newDraft,
+                      (fn) => setNewDraft(prev => prev ? { ...prev, ...fn(prev) } as any : prev),
+                      saveNewRiesgo,
+                      cancelAddNew,
+                      savingId === "__new__",
+                      true,
+                    )}
+
                     {riesgos.map((r) => {
+                      if (editingId === r.id) {
+                        return (
+                          <React.Fragment key={r.id}>
+                            {renderEditableRow(
+                              editDraft,
+                              (fn) => setEditDraft(prev => fn(prev)),
+                              () => saveEdit(r.id),
+                              cancelEdit,
+                              savingId === r.id,
+                              false,
+                            )}
+                          </React.Fragment>
+                        );
+                      }
+
                       const np = calcNP(r.nivel_deficiencia, r.nivel_exposicion);
                       const nr = calcNR(r.nivel_deficiencia, r.nivel_exposicion, r.nivel_consecuencia);
+                      const nivel = interpretNR(nr);
                       return (
-                        <TableRow key={r.id}>
+                        <TableRow key={r.id} className="group">
                           <TableCell>
                             <div className="text-sm font-medium">{r.descripcion_peligro}</div>
                             <div className="text-xs text-muted-foreground">{r.categoria_peligro}</div>
@@ -279,12 +598,19 @@ ${getExportFooterHTML()}
                           <TableCell className="text-center tabular-nums">{r.nivel_consecuencia}</TableCell>
                           <TableCell className="text-center tabular-nums font-semibold">{nr}</TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${aceptabilidadColor[r.aceptabilidad] || ""}`}>
-                              {r.aceptabilidad.replace(/_/g, " ")}
-                            </span>
+                            <Badge variant="outline" className={`${aceptabilidadColor[r.aceptabilidad] || ""} text-xs`}>
+                              {nivel} – {aceptabilidadLabel[r.aceptabilidad] || r.aceptabilidad.replace(/_/g, " ")}
+                            </Badge>
                           </TableCell>
                           <TableCell className="text-sm max-w-[200px] truncate">
                             {[r.control_fuente, r.control_medio, r.control_individuo].filter(Boolean).join("; ") || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(r)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -294,7 +620,7 @@ ${getExportFooterHTML()}
               </div>
             ) : (
               <div className="p-8 text-center text-muted-foreground">
-                {selectedMatriz ? "Esta matriz no tiene riesgos aún." : "Selecciona una matriz para ver sus riesgos."}
+                {selectedMatriz ? "Esta matriz no tiene riesgos aún. Haga clic en \"Agregar riesgo\" para comenzar." : "Seleccione una matriz para ver sus riesgos."}
               </div>
             )}
           </CardContent>

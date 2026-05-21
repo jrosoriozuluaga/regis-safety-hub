@@ -437,6 +437,32 @@ export const matricesService = {
     const { error } = await supabase.from("riesgos_matriz").insert(rows);
     if (error) throw error;
   },
+
+  updateRiesgo: async (riesgoId: string, updates: Partial<RiesgoMatriz>): Promise<RiesgoMatriz> => {
+    const { data, error } = await supabase
+      .from("riesgos_matriz")
+      .update(updates)
+      .eq("id", riesgoId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  insertRiesgo: async (riesgo: Partial<RiesgoMatriz> & { matriz_id: string }): Promise<RiesgoMatriz> => {
+    const { data, error } = await supabase
+      .from("riesgos_matriz")
+      .insert(riesgo)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  deleteRiesgo: async (riesgoId: string): Promise<void> => {
+    const { error } = await supabase.from("riesgos_matriz").delete().eq("id", riesgoId);
+    if (error) throw error;
+  },
 };
 
 export const riesgosTipicosService = {
