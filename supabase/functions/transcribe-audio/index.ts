@@ -216,6 +216,18 @@ Deno.serve(async (req) => {
       savedPlan = data;
     }
 
+    // Log API cost
+    if (modeloUsado || whisperUsed) {
+      await supabaseClient.from("api_cost_log").insert({
+        funcion: "transcribe-audio",
+        modelo: [whisperUsed ? "whisper-1" : null, modeloUsado || null].filter(Boolean).join("+"),
+        costo_estimado_usd: +(costoWhisper + costoClaude).toFixed(6),
+        tiempo_ms: tiempoProcesamiento,
+        empresa_id: empresaId || null,
+        metadata: { audio_duracion_seg: audioDuracionSeg, whisper_used: whisperUsed },
+      }).then(() => {}, (e: any) => console.error("Cost log error:", e));
+    }
+
     return new Response(JSON.stringify({
       transcripcion,
       analisis_json,

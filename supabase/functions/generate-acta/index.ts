@@ -149,6 +149,18 @@ Deno.serve(async (req) => {
 
     const costoEstimado = modeloUsado.includes("haiku") ? 0.005 : modeloUsado.includes("sonnet") ? 0.01 : 0;
 
+    // Log API cost
+    if (modeloUsado) {
+      await supabaseClient.from("api_cost_log").insert({
+        funcion: "generate-acta",
+        modelo: modeloUsado,
+        costo_estimado_usd: costoEstimado,
+        tiempo_ms: tiempoProcesamiento,
+        empresa_id: comite.empresa_id,
+        metadata: { acta_length: actaContent.length, numero_acta },
+      }).then(() => {}, (e: any) => console.error("Cost log error:", e));
+    }
+
     return new Response(JSON.stringify({
       acta, contenido: actaContent, ai_used: usedAI,
       modelo_usado: modeloUsado || null,

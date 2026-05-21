@@ -320,6 +320,18 @@ Extrae la información en el mismo formato JSON anterior. Si realmente no puedes
 
     const costoEstimado = modeloUsado.includes("haiku") ? 0.003 : modeloUsado.includes("sonnet") ? 0.02 : 0;
 
+    // Log API cost
+    if (modeloUsado) {
+      await supabaseClient.from("api_cost_log").insert({
+        funcion: "process-exam-pdf",
+        modelo: modeloUsado,
+        costo_estimado_usd: costoEstimado,
+        tiempo_ms: tiempoProcesamiento,
+        empresa_id: empresaId,
+        metadata: { confianza: extracted?.confianza_extraccion, es_examen: extracted?.es_examen_medico },
+      }).then(() => {}, (e: any) => console.error("Cost log error:", e));
+    }
+
     return new Response(JSON.stringify({
       extracted, examen: savedExamen,
       es_examen_medico: extracted.es_examen_medico ?? true,

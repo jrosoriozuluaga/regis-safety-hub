@@ -231,6 +231,26 @@ export default function Observability() {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
+    // Try api_cost_log table first (precise data from Edge Functions)
+    const { data: costData, error: costErr } = await supabase
+      .from("api_cost_log")
+      .select("funcion, costo_estimado_usd")
+      .gte("created_at", startOfMonth.toISOString());
+
+    if (!costErr && costData && costData.length > 0) {
+      const counts: Record<string, number> = {};
+      let total = 0;
+      for (const row of costData as any[]) {
+        const f = row.funcion || "otro";
+        counts[f] = (counts[f] || 0) + 1;
+        total += Number(row.costo_estimado_usd) || 0;
+      }
+      setAiCalls(counts);
+      setEstimatedCost(total);
+      return;
+    }
+
+    // Fallback: estimate from logs_actividad
     const { data } = await supabase
       .from("logs_actividad")
       .select("modulo")
