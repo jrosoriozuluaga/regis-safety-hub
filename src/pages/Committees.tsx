@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive, Link2, Copy, UserCheck } from "lucide-react";
+import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive, Link2, Copy, UserCheck, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -441,36 +441,64 @@ export default function Committees() {
                         <Sparkles className="h-3 w-3" /> IA
                       </Badge>
                     )}
-                    {/* Signature status */}
+                    {/* Signature status + overdue badge */}
                     {a.firmada ? (
                       <Badge variant="default" className="text-[10px] gap-1 bg-green-600">
                         <CheckCircle2 className="h-3 w-3" /> Firmada
                       </Badge>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1 text-amber-600 border-amber-300"
-                        onClick={async () => {
-                          await supabase.from("actas_comite").update({
-                            firmada: true,
-                            fecha_firma: new Date().toISOString(),
-                            estado: "firmada",
-                          }).eq("id", a.id);
-                          await logsService.log({
-                            tipo: "actualizar",
-                            modulo: "comites",
-                            descripcion: `Acta #${a.numero_acta} marcada como firmada`,
-                            empresa_id: selectedEmpresa || undefined,
-                            usuario_id: user?.id,
-                            metadata: { acta_id: a.id, numero_acta: a.numero_acta },
-                          });
-                          toast.success("Acta marcada como firmada");
-                          comitesService.actas(a.comite_id).then(setActas);
-                        }}
-                      >
-                        <PenLine className="h-3 w-3" /> Firmar
-                      </Button>
+                      <>
+                        {/* Overdue badge: > 7 days without signature */}
+                        {Date.now() - new Date(a.fecha_reunion).getTime() > 7 * 24 * 60 * 60 * 1000 && (
+                          <Badge variant="destructive" className="text-[10px] gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Vencida
+                          </Badge>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1 text-amber-600 border-amber-300"
+                          onClick={async () => {
+                            await supabase.from("actas_comite").update({
+                              firmada: true,
+                              fecha_firma: new Date().toISOString(),
+                              estado: "firmada",
+                            }).eq("id", a.id);
+                            await logsService.log({
+                              tipo: "actualizar",
+                              modulo: "comites",
+                              descripcion: `Acta #${a.numero_acta} marcada como firmada`,
+                              empresa_id: selectedEmpresa || undefined,
+                              usuario_id: user?.id,
+                              metadata: { acta_id: a.id, numero_acta: a.numero_acta },
+                            });
+                            toast.success("Acta marcada como firmada");
+                            comitesService.actas(a.comite_id).then(setActas);
+                          }}
+                        >
+                          <PenLine className="h-3 w-3" /> Firmar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1 text-orange-600"
+                          onClick={async () => {
+                            const empresa = empresas.find(e => e.id === selectedEmpresa);
+                            const diasPendiente = Math.floor((Date.now() - new Date(a.fecha_reunion).getTime()) / (24 * 60 * 60 * 1000));
+                            await logsService.log({
+                              tipo: "recordatorio",
+                              modulo: "comites",
+                              descripcion: `Recordatorio de firma enviado: Acta #${a.numero_acta} del comité ${tipoComite} — ${diasPendiente} días pendiente`,
+                              empresa_id: selectedEmpresa || undefined,
+                              usuario_id: user?.id,
+                              metadata: { acta_id: a.id, numero_acta: a.numero_acta, dias_pendiente: diasPendiente, tipo_comite: tipoComite },
+                            });
+                            toast.success(`Recordatorio registrado — Acta #${a.numero_acta} pendiente de firma hace ${diasPendiente} día(s)`);
+                          }}
+                        >
+                          <Bell className="h-3 w-3" /> Recordar
+                        </Button>
+                      </>
                     )}
                     {/* Archive status */}
                     {a.archivada ? (
