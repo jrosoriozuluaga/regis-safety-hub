@@ -75,14 +75,12 @@ INSTRUCCIONES:
     const aiErrors: string[] = [];
 
     if (anthropicKey) {
-      const modelsToTry = [
-        { model: "claude-sonnet-4-20250514", beta: null },
-        { model: "claude-3-7-sonnet-20250219", beta: null },
-        { model: "claude-3-5-sonnet-20241022", beta: "pdfs-2024-09-25" },
-        { model: "claude-3-5-haiku-20241022", beta: "pdfs-2024-09-25" },
+      const MODEL_CASCADE = [
+        { model: "claude-sonnet-4-6", beta: null },
+        { model: "claude-haiku-4-5-20251001", beta: null },
       ];
       
-      for (const { model, beta } of modelsToTry) {
+      for (const { model, beta } of MODEL_CASCADE) {
         console.log(`Trying model: ${model}`);
         try {
           const headers: Record<string, string> = {

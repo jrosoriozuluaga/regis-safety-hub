@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
     if (anthropicKey) {
       const prompt = `Eres un especialista en Seguridad y Salud en el Trabajo (SG-SST) en Colombia. Genera el acta de una reunión ${tipo_reunion} del ${tipo_comite_nombre} de la empresa ${empresa.razon_social}.\n\nDATOS DE LA REUNIÓN:\n- Fecha: ${fecha_reunion}\n- Hora: ${hora_inicio || "09:00"} a ${hora_fin || "10:00"}\n- Lugar: ${lugar || empresa.ciudad}\n- Número de acta: ${numero_acta}\n- NIT: ${empresa.nit}\n- Ciudad: ${empresa.ciudad}\n\nINTEGRANTES DEL COMITÉ:\n${JSON.stringify(integrantes?.map((i: any) => ({ nombre: i.nombre, cargo_empresa: i.cargo_empresa, rol_comite: i.rol_comite, es_principal: i.es_principal })), null, 2)}\n\nASISTENTES A ESTA REUNIÓN:\n${JSON.stringify(asistentes.map((a: any) => ({ nombre: a.nombre, cargo_empresa: a.cargo_empresa, rol_comite: a.rol_comite })), null, 2)}\n\nPUNTOS TRATADOS:\n${JSON.stringify(puntos_json, null, 2)}\n\nINSTRUCCIONES:\n1. Genera el acta completa con formato estándar colombiano.\n2. Verifica el quórum: se requiere mitad + 1 de los integrantes principales. Hay quórum: ${hay_quorum ? "Sí" : "No"}.\n3. Para cada punto tratado, desarrolla el contenido con redacción formal y técnica.\n4. Si es una reunión ordinaria, incluye temas típicos del ${tipo_comite_nombre}.\n5. Incluye sección de firmas al final.\n\nFORMATO: Responde con el texto completo del acta en markdown.`;
 
-      const modelsToTry = ["claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022"];
-      for (const model of modelsToTry) {
+      const MODEL_CASCADE = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"];
+      for (const model of MODEL_CASCADE) {
         try {
           const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
