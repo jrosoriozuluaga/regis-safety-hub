@@ -1,11 +1,11 @@
-# Libreto Narrado FINAL — Demo Video Regis Safety Hub
+# Libreto Narrado FINAL v2 — Demo Video Regis Safety Hub
 
 **Fecha:** 2026-05-21
 **Duracion total objetivo:** 24:00 minutos (margen de 1 minuto)
-**Palabras estimadas:** ~3,400 (140 palabras/minuto)
+**Palabras estimadas:** ~3,500 (140 palabras/minuto)
 **Idioma:** Espanol formal colombiano
 **Optimizado para:** Evaluacion por IA (transcript) + revision humana posterior
-**Version:** FINAL — refleja estado completo de la plataforma al 21 de mayo de 2026
+**Version:** FINAL v2 — refleja estado completo al cierre del Dia 2 (21 mayo 2026)
 
 ---
 
@@ -60,19 +60,19 @@ Regis Safety Hub automatiza esas tareas. La plataforma corre en produccion con d
 
 **[Pantalla: Diagrama de arquitectura + Supabase Dashboard]**
 
-La arquitectura tiene cuatro capas. El frontend esta construido en React con TypeScript y Vite. Usamos shadcn/ui para componentes e iconos de Lucide. El backend es cien por ciento Supabase: base de datos PostgreSQL con Row Level Security, autenticacion integrada, almacenamiento de documentos y siete Edge Functions desplegadas en Deno.
+La arquitectura tiene cuatro capas. El frontend esta construido en React con TypeScript y Vite. Usamos shadcn/ui para componentes e iconos de Lucide. El backend es cien por ciento Supabase: base de datos PostgreSQL con Row Level Security, autenticacion integrada, almacenamiento de documentos y ocho Edge Functions desplegadas en Deno.
 
-Para automatizacion de flujos usamos n8n autoalojado. Para inteligencia artificial usamos Claude de Anthropic y Whisper de OpenAI. Los correos se envian con Resend como canal primario y n8n como alternativa. Las notificaciones de WhatsApp se envian con Twilio. Toda la comunicacion es multicanal.
+Para automatizacion de flujos usamos n8n autoalojado. Para inteligencia artificial usamos Claude de Anthropic y Whisper de OpenAI. Tambien integramos Fireflies punto ai para transcripcion automatica de reuniones virtuales con identificacion de hablantes. Los correos se envian con Resend como canal primario y n8n como alternativa. Las notificaciones de WhatsApp se envian con Twilio. Toda la comunicacion es multicanal.
 
-Un punto importante sobre seguridad. La base de datos tiene noventa y cuatro politicas de Row Level Security activas. Esto garantiza aislamiento completo entre empresas a nivel de base de datos. Un cliente nunca puede ver datos de otra empresa, ni siquiera manipulando peticiones desde el navegador. Esto cumple con la Ley 1581 de 2012 sobre proteccion de datos personales y es fundamental para escalar de tres a noventa empresas sin riesgo de fuga de informacion.
+Un punto importante sobre costos. El sistema usa una cascada de modelos de IA: primero intenta con Haiku, el modelo mas economico de Anthropic. Solo si la confianza del resultado es baja, escala a Sonnet. Esto reduce los costos de IA en aproximadamente setenta por ciento. Cada llamada a la API se registra con su costo estimado para control presupuestario.
 
-Ademas, optimizamos el rendimiento del frontend. Las librerias pesadas como Excel se cargan bajo demanda, no al inicio. Eliminamos dependencias innecesarias de graficos. La plataforma carga rapidamente incluso con conexiones lentas.
+Sobre seguridad: la base de datos tiene noventa y cuatro politicas de Row Level Security activas. Esto garantiza aislamiento completo entre empresas. Un cliente nunca puede ver datos de otra empresa. Esto cumple con la Ley 1581 de 2012 sobre proteccion de datos personales.
 
 **[Pantalla: Login + Dashboard]**
 
 La plataforma maneja tres roles: administrador, consultor y cliente. El administrador y el consultor ven todas las empresas mediante un selector. El cliente solo ve los datos de su propia empresa, aislado por Row Level Security.
 
-En produccion tenemos tres empresas: Construandes con ocho trabajadores y riesgo dos, DevCo con veinticinco trabajadores y riesgo uno, y Sabor Criollo con quince trabajadores y riesgo dos. Cada una aplica a un capitulo distinto de la Resolucion 0312 de 2019.
+En produccion tenemos tres empresas: Construandes con ocho trabajadores y riesgo dos, DevCo con veinticinco trabajadores y riesgo uno, y Sabor Criollo con quince trabajadores y riesgo dos.
 
 ---
 
@@ -86,23 +86,25 @@ Cada mes, cada empresa debe entregar su planilla integrada de liquidacion de apo
 
 Primero, la sincronizacion de periodos. Al ingresar al modulo, el sistema genera automaticamente seis meses de registros por empresa. No hay que crear periodos a mano.
 
-Segundo, los recordatorios automaticos. El dia dieciseis de cada mes, n8n dispara correos de solicitud a todas las empresas. Si la empresa no sube su PILA en tres dias, se envian recordatorios escalonados por correo electronico y por WhatsApp. El numero maximo de recordatorios es configurable desde la interfaz de administracion. El sistema es compatible con Microsoft 365 y Outlook, que es el proveedor de correo que usa Regis.
+Segundo, los recordatorios automaticos. El dia dieciseis de cada mes, n8n dispara correos de solicitud a todas las empresas. Si la empresa no sube su PILA en tres dias, se envian recordatorios escalonados por correo electronico y por WhatsApp. El numero maximo de recordatorios es configurable desde la interfaz de administracion.
 
-Tercero, la carga publica con validacion. El cliente recibe un enlace unico con token. Abro ahora una ventana de incognito para simular al cliente. El cliente sube su PDF sin necesidad de tener cuenta en la plataforma.
+Cuando se excede el maximo de recordatorios, el sistema escala automaticamente a Recursos Humanos. El contacto de RRHH de la empresa recibe una notificacion directa. Esto garantiza que ningun periodo quede sin atencion, sin intervencion manual.
+
+Tercero, la carga publica con validacion. El cliente recibe un enlace unico con token. Abro ahora una ventana de incognito para simular al cliente.
 
 **[Accion: abrir URL publica de carga en ventana incognito]**
 
-Noten que el sistema valida el archivo antes de aceptarlo. Solo se permiten archivos PDF y el tamano maximo es de diez megabytes. Si el cliente intenta subir un archivo de otro formato o un archivo demasiado grande, recibe un mensaje de error claro. Esto previene errores comunes y reduce la carga del analista.
+Noten el aviso de privacidad conforme a la Ley 1581 de 2012 visible antes de la carga. El sistema valida el archivo antes de aceptarlo. Solo se permiten archivos PDF y el tamano maximo es de diez megabytes. Si el cliente intenta subir un archivo de otro formato, recibe un mensaje de error claro.
 
 **[Accion: subir PDF valido]**
 
-El archivo se asocia automaticamente a la empresa y al periodo correcto. El sistema almacena el documento en un bucket de Supabase con URLs firmadas que expiran en veinticuatro horas.
+El archivo se asocia automaticamente a la empresa y al periodo correcto. Si el mismo archivo se sube dos veces, el sistema detecta el duplicado y no genera registros repetidos. Esto es idempotencia real.
 
-Cuarto, el flujo de validacion. El estado del documento pasa por cuatro etapas: pendiente, cargado, validado, aprobado. Solo cuando el analista de Regis marca el documento como aprobado se otorgan puntos de cumplimiento. Esto garantiza control de calidad antes de que la evidencia cuente.
+Cuarto, el flujo de validacion. El estado del documento pasa por cuatro etapas: pendiente, cargado, validado, aprobado. Solo cuando el analista de Regis marca el documento como aprobado se otorgan puntos de cumplimiento.
 
-**[Accion: cambiar estado del registro de pendiente a aprobado paso a paso]**
+**[Accion: cambiar estado del registro paso a paso]**
 
-El correo remitente es configurable desde la seccion de configuracion del sistema. No requiere modificar codigo. Las Edge Functions leen ese valor dinamicamente.
+El correo remitente es configurable desde la configuracion del sistema. El sistema es compatible con Microsoft 365 y Outlook, que es el proveedor que usa Regis.
 
 Hemos demostrado el cumplimiento del Criterio 1. La automatizacion PILA opera de extremo a extremo, sin intervencion manual.
 
@@ -120,9 +122,9 @@ Con Claude Vision, la plataforma extrae automaticamente seis campos clave del PD
 
 **[Accion: subir primer PDF de examen medico]**
 
-Subo ahora un certificado de aptitud medica. La Edge Function envia el documento a Claude, que analiza el contenido y devuelve los campos estructurados. El formulario se pre-llena automaticamente. El consultor solo revisa y confirma. Lo que antes tomaba quince minutos ahora toma treinta segundos.
+Subo ahora un certificado de aptitud medica. La Edge Function envia el documento primero a Haiku, el modelo mas economico. Solo si la confianza de extraccion es baja, escala automaticamente a Sonnet. El formulario se pre-llena con los datos extraidos. El consultor solo revisa y confirma. Lo que antes tomaba quince minutos ahora toma treinta segundos.
 
-Noten el indicador de calidad de extraccion. El sistema muestra un porcentaje de confianza. Si la calidad es baja, por ejemplo con un PDF escaneado o de baja resolucion, se muestra una advertencia para que el consultor revise con mayor atencion los campos extraidos. Esto reduce errores sin eliminar la supervision humana.
+Noten el indicador de calidad de extraccion. El sistema muestra un porcentaje de confianza. Si la calidad es baja, se muestra una advertencia para que el consultor revise con mayor atencion. Ademas, si el PDF no es un examen medico, el sistema lo detecta y advierte que el documento no corresponde a un certificado de aptitud. Esto previene errores de clasificacion.
 
 **[Accion: subir segundo PDF con formato diferente]**
 
@@ -130,11 +132,9 @@ Subo un segundo PDF con formato completamente diferente. El modelo de IA se adap
 
 **[Accion: mostrar boton "Ver PDF" en un examen ya procesado]**
 
-Tambien se puede consultar el PDF original en cualquier momento. Al hacer clic en "Ver PDF" se abre el documento almacenado. Esto permite al analista comparar la extraccion con el original si tiene dudas.
+Se puede consultar el PDF original en cualquier momento. Al hacer clic en "Ver PDF" se abre el documento con una URL firmada que expira en veinticuatro horas. Las recomendaciones medicas se vinculan al trabajador para seguimiento continuo. El sistema detecta duplicados: si se sube el mismo examen dos veces, muestra una advertencia.
 
-Las recomendaciones medicas se vinculan al trabajador para seguimiento continuo. Si el examen indica restricciones, quedan registradas con fecha y detalle. El sistema detecta duplicados: si se sube el mismo examen dos veces para el mismo trabajador y periodo, muestra una advertencia.
-
-Este proceso funciona con PDFs de diferentes IPS, diferentes formatos y diferentes estructuras. El noventa y ocho por ciento de los examenes que recibe Regis son PDF digital. Claude Vision procesa tanto documentos digitales como escaneados sin necesidad de un OCR dedicado. La plataforma ha procesado exitosamente al menos 5 PDFs distintos sin error.
+La plataforma ha procesado exitosamente al menos 5 PDFs distintos sin error.
 
 Hemos demostrado el cumplimiento del Criterio 2. La extraccion con inteligencia artificial funciona con multiples formatos de PDF.
 
@@ -148,7 +148,7 @@ Demostramos el cumplimiento del Criterio 3: generacion de matriz de riesgo basad
 
 La matriz de riesgo con metodologia GTC 45 es el documento mas complejo del SG-SST. Elaborarla manualmente toma minimo ocho horas por empresa. Regis nos confirmo que es la tarea que mas tiempo consume de todas.
 
-La plataforma genera una matriz base con pre-llenado automatico con los riesgos mas comunes segun el codigo CIIU de la empresa. Por ejemplo, CIIU seis-dos-cero-uno para desarrollo de software genera riesgos ergonomicos, de pantalla de visualizacion y psicosociales. CIIU seis-ocho-dos-cero para actividades inmobiliarias genera riesgos de trabajo en alturas y locativos. CIIU siete-cero-dos-cero para consultoria empresarial genera riesgos biomecanicos y de carga mental.
+La plataforma genera una matriz base con pre-llenado automatico con los riesgos mas comunes segun el codigo CIIU de la empresa. CIIU seis-dos-cero-uno para desarrollo de software genera riesgos ergonomicos, de pantalla de visualizacion y psicosociales. CIIU seis-ocho-dos-cero para actividades inmobiliarias genera riesgos de trabajo en alturas y locativos. CIIU siete-cero-dos-cero para consultoria empresarial genera riesgos biomecanicos y de carga mental.
 
 **[Accion: abrir matriz de Construandes, mostrar tabla editable en linea]**
 
@@ -156,21 +156,21 @@ La matriz se edita directamente en la tabla, sin necesidad de abrir un formulari
 
 **[Accion: cambiar ND y NE en un riesgo, mostrar que NP y NR se recalculan]**
 
-Vean como al cambiar el Nivel de Deficiencia de "bajo" a "alto" y el Nivel de Exposicion de "esporadica" a "frecuente", el Nivel de Probabilidad y el Nivel de Riesgo se recalculan inmediatamente. El consultor ajusta la matriz generada, no construye desde cero. Tambien puede agregar riesgos nuevos que no estaban en la plantilla del CIIU.
+Vean como al cambiar el Nivel de Deficiencia y el Nivel de Exposicion, el Nivel de Probabilidad y el Nivel de Riesgo se recalculan inmediatamente. El consultor ajusta la matriz generada, no construye desde cero. Tambien puede agregar riesgos nuevos.
 
 **[Accion: mostrar matrices de las 3 empresas con codigos CIIU distintos]**
 
-Muestro ahora las matrices de las tres empresas para confirmar que funcionan con al menos 3 codigos distintos. Cada una tiene riesgos diferentes segun su actividad economica.
+Muestro ahora las matrices de las tres empresas para confirmar que funcionan con al menos 3 codigos distintos.
+
+Ademas, cuando la ARL revisa y aprueba la matriz, el consultor puede subir el documento de aprobacion. La fecha y el archivo de aprobacion ARL quedan registrados y se reflejan en el dashboard de cumplimiento.
 
 La exportacion incluye el logo de la empresa cliente en el encabezado, el codigo del documento, la version y la fecha.
 
-**[Accion: exportar PDF con encabezado completo]**
-
-Hemos demostrado el cumplimiento del Criterio 3. La generacion funciona con al menos 3 codigos distintos, la edicion es en linea con calculo automatico GTC 45, y la exportacion es profesional.
+Hemos demostrado el cumplimiento del Criterio 3.
 
 ---
 
-## BLOQUE 5 — Criterio 4: Actas de Comites (14:00 – 16:30) ~350 palabras
+## BLOQUE 5 — Criterio 4: Actas de Comites (14:00 – 17:00) ~420 palabras
 
 **[Pantalla: Modulo Comites]**
 
@@ -182,45 +182,45 @@ La plataforma registra los comites con sus integrantes precargados. Al crear una
 
 **[Accion: seleccionar empresa Construandes, mostrar comite COPASST con integrantes]**
 
-Muestro ahora el comite COPASST de Construandes. Los integrantes estan precargados desde la base de datos con sus roles: presidente, secretario y representantes. Selecciono los asistentes. El sistema confirma que hay quorum.
+Los integrantes estan precargados desde la base de datos con sus roles. Selecciono los asistentes. El sistema confirma que hay quorum.
 
-Ingreso los puntos tratados en la reunion: orden del dia, desarrollo de temas, compromisos adquiridos. Claude toma esa informacion y genera un acta formal con estructura normativa completa.
+Hay tres formas de generar el acta. La primera: el consultor ingresa los puntos tratados manualmente. Claude genera el acta formal.
 
-**[Accion: generar acta con IA]**
+La segunda: para reuniones virtuales, la plataforma importa la transcripcion de Fireflies punto ai con identificacion de hablantes. Claude recibe esa transcripcion con diarizacion y genera el acta automaticamente, atribuyendo las intervenciones al hablante correcto.
 
-El acta generada incluye encabezado con datos de la empresa, fecha, hora, asistentes con cargo, orden del dia, desarrollo, compromisos con responsable y fecha, y espacio para firmas.
+La tercera: para reuniones presenciales, el consultor graba el audio en su celular y lo sube. Whisper de OpenAI lo transcribe y Claude genera el acta desde la transcripcion.
 
-El sistema tambien gestiona el flujo de firma y archivado. Cuando el acta esta generada, el analista puede marcarla como firmada y luego archivarla. La plataforma recuerda al consultor si hay actas pendientes de firma.
+**[Accion: generar acta con IA — desde transcripcion o desde agenda]**
+
+El acta generada incluye encabezado con datos de la empresa, asistentes con cargo, orden del dia, desarrollo, compromisos con responsable y fecha, y espacio para firmas. La plataforma tambien genera un enlace de asistencia digital: los miembros del comite confirman su asistencia desde un enlace publico sin necesidad de tener cuenta.
+
+El sistema gestiona el flujo de firma y archivado. Cuando el acta esta generada, el analista puede marcarla como firmada y luego archivarla. Si un acta lleva mas de treinta dias sin firma, el sistema muestra un recordatorio visible.
 
 **[Accion: cambiar a empresa DevCo, repetir proceso brevemente]**
 
-Repito el proceso con DevCo Technologies para demostrar que funciona en al menos 2 empresas distintas. Los integrantes de DevCo son diferentes. El contenido generado se adapta a cada empresa.
+Repito con DevCo Technologies para demostrar que funciona en al menos 2 empresas distintas.
 
-La exportacion incluye el logo de la empresa cliente en el encabezado, el codigo del documento, la version y la fecha.
-
-Hemos demostrado el cumplimiento del Criterio 4. Las actas se generan con integrantes precargados, validacion de quorum y contenido asistido por inteligencia artificial.
+Hemos demostrado el cumplimiento del Criterio 4. Las actas se generan con integrantes precargados, validacion de quorum, contenido desde tres fuentes distintas, y asistencia digital.
 
 ---
 
-## BLOQUE 6 — Criterio 5: Plan de Emergencias desde Audio (16:30 – 19:00) ~350 palabras
+## BLOQUE 6 — Criterio 5: Plan de Emergencias desde Audio (17:00 – 19:00) ~280 palabras
 
 **[Pantalla: Modulo Planes de Emergencia]**
 
 Demostramos el cumplimiento del Criterio 5: generacion de plan de emergencias a partir de un audio de minimo 3 minutos, con transcripcion y analisis de vulnerabilidad.
 
-El plan de emergencias requiere un analisis de vulnerabilidades de las instalaciones. Normalmente el consultor recorre la empresa, toma notas a mano y despues redacta el informe. Hay alto riesgo de omision.
+El plan de emergencias requiere un analisis de vulnerabilidades de las instalaciones. Normalmente el consultor recorre la empresa, toma notas a mano y despues redacta el informe.
 
 Con esta herramienta, el consultor graba un audio durante el recorrido. La plataforma procesa ese audio en dos etapas. Primera etapa: Whisper de OpenAI transcribe el audio a texto en espanol. Segunda etapa: Claude analiza la transcripcion y extrae vulnerabilidades estructuradas.
 
 **[Accion: subir audio pregrabado de mas de 3 minutos]**
 
-Subo ahora un audio de recorrido de inspeccion. El audio tiene mas de tres minutos de duracion, como exige el criterio. Whisper genera la transcripcion completa. Claude identifica amenazas por categoria: naturales, tecnologicas y sociales.
+El audio tiene mas de tres minutos de duracion, como exige el criterio. Whisper genera la transcripcion completa. Claude identifica amenazas por categoria: naturales, tecnologicas y sociales.
 
-El resultado es una matriz de amenazas y vulnerabilidades con nivel de riesgo, probabilidad, impacto y recomendaciones especificas. Las recomendaciones vienen priorizadas: alta, media y baja, con responsable sugerido y plazo. Todo esto en minutos, no en horas.
+El resultado es una matriz de amenazas y vulnerabilidades con nivel de riesgo, probabilidad, impacto y recomendaciones priorizadas. Todo esto en minutos, no en horas.
 
-El sistema tiene tolerancia a fallos. Si la API de Whisper no esta disponible, el consultor puede pegar la transcripcion manualmente y el analisis se genera igual. Si Claude tampoco esta disponible, genera un analisis base con las palabras clave detectadas en el texto.
-
-El consultor revisa el analisis, ajusta lo que considere necesario y guarda el plan. La evidencia queda registrada con trazabilidad completa.
+El sistema tiene tolerancia a fallos. Si la API de Whisper no esta disponible, el consultor puede pegar la transcripcion manualmente y el analisis se genera igual.
 
 **[Accion: exportar plan con encabezado corporativo]**
 
@@ -228,7 +228,7 @@ Hemos demostrado el cumplimiento del Criterio 5. El plan de emergencias se gener
 
 ---
 
-## BLOQUE 7 — Criterio 6: Dashboard de Cumplimiento (19:00 – 20:30) ~210 palabras
+## BLOQUE 7 — Criterio 6: Dashboard de Cumplimiento (19:00 – 20:30) ~280 palabras
 
 **[Pantalla: Modulo Cumplimiento]**
 
@@ -240,63 +240,71 @@ La Resolucion 0312 de 2019 define los estandares minimos del SG-SST. Para empres
 
 El dashboard muestra el ciclo PHVA: Planear, Hacer, Verificar, Actuar. Cada fase tiene su porcentaje de avance calculado en tiempo real. Cada documento aprobado, cada comite con acta, cada examen validado suma puntos automaticamente. No hay puntajes fijos en el codigo.
 
-Los datos provienen directamente de la base de datos. Construandes tiene ocho trabajadores y aplica al Capitulo 1. DevCo tiene veinticinco y aplica al Capitulo 2. Sabor Criollo tiene quince y tambien aplica al Capitulo 2. Cada empresa muestra un puntaje diferente basado en su evidencia real.
+Construandes tiene ocho trabajadores y aplica al Capitulo 1. DevCo tiene veinticinco y aplica al Capitulo 2. Sabor Criollo tiene quince y tambien aplica al Capitulo 2. Cada empresa muestra un puntaje diferente basado en su evidencia real.
 
-El cliente puede acceder a su propio dashboard y ver su porcentaje de cumplimiento en tiempo real. Solo ve su empresa.
+**[Accion: toggle Admin/Cliente — mostrar vista previa]**
+
+Ahora demuestro la vista del cliente. Desde el toggle en la barra superior, cambio a modo cliente. El dashboard cambia completamente: muestra el cumplimiento de una sola empresa con un grafico circular y el desglose PHVA. Puedo seleccionar cualquier empresa para previsualizar exactamente lo que el cliente ve cuando inicia sesion.
+
+**[Accion: seleccionar empresa en selector de vista previa]**
 
 Hemos demostrado el cumplimiento del Criterio 6. El dashboard funciona con datos reales, sin data hardcodeada, con vista diferenciada por rol.
 
 ---
 
-## BLOQUE 8 — Recomendaciones de Ultima Milla + Diferenciadores (20:30 – 22:30) ~350 palabras
+## BLOQUE 8 — Recomendaciones + Diferenciadores + Observabilidad (20:30 – 22:30) ~350 palabras
 
 **[Pantalla: Modulos Documentos e Inventario de Equipos]**
 
-Ademas de los seis criterios tecnicos, la plataforma implementa las cuatro recomendaciones de ultima milla del segundo brief y los diferenciadores competitivos.
+Ademas de los seis criterios tecnicos, la plataforma implementa las cuatro recomendaciones de ultima milla.
 
-**Primera recomendacion:** Seccion de documentos generales del SG-SST. La plataforma incluye un modulo dedicado para subir y organizar documentos generales por empresa: politicas, actas de recursos, planes de capacitacion, cronogramas. Cada documento pasa por el flujo de validacion: pendiente, cargado, validado, aprobado. Cuando se aprueba, suma al dashboard de cumplimiento.
+**Primera recomendacion:** Seccion de documentos generales del SG-SST. La plataforma incluye un modulo dedicado para documentos generales por empresa. Cada documento pasa por el flujo de validacion: pendiente, cargado, validado, aprobado. Cuando se aprueba, suma al dashboard de cumplimiento.
 
-**[Accion: subir un documento en el modulo Documentos, mostrar flujo de estados]**
+**Segunda recomendacion:** el correo remitente es configurable desde la configuracion del sistema, sin tocar codigo.
 
-**Segunda recomendacion:** el correo remitente es configurable. Desde la configuracion del sistema, el administrador puede cambiar el remitente, el asunto y el contenido de los correos sin tocar codigo. La plataforma es compatible con Microsoft 365 y Outlook, que es el proveedor que usa Regis.
+**Tercera recomendacion:** el logo de la empresa cliente en el encabezado de documentos exportados.
 
-**[Accion: mostrar configuracion de correo en Settings]**
+**Cuarta recomendacion:** cada exportacion incluye el codigo del documento, la version y la fecha.
 
-**Tercera recomendacion:** el logo de la empresa cliente en el encabezado de documentos exportados. Cada exportacion incluye el membrete corporativo correspondiente.
+**[Accion: mostrar exportacion PDF con encabezado completo]**
 
-**Cuarta recomendacion:** cada exportacion incluye el codigo del documento, la version y la fecha en el encabezado. Esto cumple con los requisitos de control documental del SG-SST.
+El inventario de equipos de emergencia rastrea extintores, botiquines y camillas con fecha de vencimiento. El sistema muestra alertas cuando un equipo esta por vencer y cambia el estado automaticamente a vencido cuando pasa la fecha. Este es el diferenciador A del brief.
 
-**[Accion: mostrar exportacion PDF con encabezado completo — zoom al encabezado]**
+**[Accion: mostrar modulo Inventario con equipo vigente, por vencer y vencido]**
 
-Ahora los diferenciadores competitivos. La plataforma incluye un inventario de equipos de emergencia. Extintores, botiquines y camillas se registran con fecha de vencimiento. El sistema muestra alertas cuando un equipo esta por vencer y cambia el estado automaticamente a vencido cuando pasa la fecha. El dashboard principal muestra estas alertas para que ningun equipo pase desapercibido. Este es el diferenciador A del brief.
+**[Pantalla: Dashboard de Observabilidad]**
 
-**[Accion: mostrar modulo Inventario de Equipos con equipo vigente, por vencer y vencido]**
+Ahora muestro el dashboard de observabilidad operativa, disenado para que el administrador de Regis sepa en treinta segundos si la plataforma esta sana. Muestra la tendencia de actividad, el mapa de calor de estado PILA por empresa, los costos acumulados de API de IA con desglose por modelo Haiku y Sonnet, y la distribucion de cumplimiento de todas las empresas. Toda esta informacion se calcula en tiempo real desde la base de datos.
+
+**[Accion: recorrer los 4 paneles del dashboard de observabilidad]**
 
 ---
 
 ## BLOQUE 9 — Criterios 7 y 8: Produccion y Manual (22:30 – 24:00) ~280 palabras
 
-**[Pantalla: n8n + Terminal + SOP]**
+**[Pantalla: n8n + Supabase + SOP]**
 
 Demostramos el cumplimiento del Criterio 7: implementacion en produccion con datos funcionales de al menos una empresa simulada.
 
-La plataforma no es un prototipo. Esta desplegada en produccion con tres empresas activas: Construandes, DevCo y Sabor Criollo. Cada empresa tiene trabajadores, examenes medicos, registros PILA, comites, matrices de riesgo, documentos, equipos y evaluaciones de cumplimiento.
+La plataforma esta desplegada en produccion con tres empresas activas y cuatro usuarios configurados. El administrador de Regis ve todo. Hay un consultor asignado a empresas especificas. Y dos clientes: uno para Sabor Criollo y otro para Construandes, cada uno con acceso exclusivo a su empresa.
+
+**[Accion: mostrar login como cliente de Sabor Criollo]**
+
+Al iniciar sesion como cliente, solo veo los datos de mi empresa. No hay boton de cambiar empresa, no hay modulos de administracion. Row Level Security garantiza el aislamiento a nivel de base de datos.
 
 **[Accion: mostrar n8n con workflows PILA]**
 
 En n8n tenemos cuatro workflows de automatizacion PILA: solicitud mensual automatica, recordatorios inteligentes, seguimiento diario y recepcion de archivos. Todos operan con cron jobs, sin intervencion manual.
 
-La arquitectura es multi-tenant con Row Level Security en Supabase. Noventa y cuatro politicas de RLS activas garantizan que cada empresa solo ve sus propios datos a nivel de base de datos. Escalar de tres a noventa empresas es agregar registros, no codigo.
+La arquitectura es multi-tenant con noventa y cuatro politicas de RLS activas. Escalar de tres a noventa empresas es agregar registros, no codigo. Cada llamada a la API de IA se registra con costo estimado para que Regis controle su presupuesto mensual.
 
 **[Pantalla: Manual SOP]**
 
 Demostramos el cumplimiento del Criterio 8: manual escrito que permita operar la plataforma sin acompanamiento del desarrollador.
 
-El manual de operaciones documenta cada modulo: como crear empresas, como gestionar PILA, como procesar examenes medicos, como generar matrices, como administrar comites, como analizar planes de emergencia, como gestionar el inventario de equipos, como usar el modulo de documentos y como interpretar el dashboard de cumplimiento.
+El manual de operaciones documenta cada modulo con capturas de pantalla, flujos paso a paso y resolucion de problemas frecuentes. Cualquiera de los tres consultores de Regis puede operar la plataforma de forma autonoma.
 
-Incluye capturas de pantalla, flujos paso a paso y una seccion de resolucion de problemas frecuentes. Cualquiera de los tres consultores de Regis puede operar la plataforma de forma autonoma siguiendo este manual.
-
-Hemos demostrado el cumplimiento de los Criterios 7 y 8. La plataforma funciona en produccion y tiene documentacion operativa completa.
+Hemos demostrado el cumplimiento de los Criterios 7 y 8.
 
 ---
 
@@ -304,25 +312,25 @@ Hemos demostrado el cumplimiento de los Criterios 7 y 8. La plataforma funciona 
 
 **[Pantalla: Dashboard principal]**
 
-Antes de cerrar, menciono los diferenciadores adicionales. La plataforma genera automaticamente una bitacora mensual por empresa, compilando todas las actividades del mes. Este es el diferenciador B del brief.
+Antes de cerrar, los diferenciadores adicionales. La plataforma genera automaticamente una bitacora mensual por empresa, compilando todas las actividades del mes. Este es el diferenciador B del brief.
 
-Las actas de comite tienen seguimiento de firma y archivado. Cuando se genera un acta pero no se firma, el sistema recuerda al consultor. Este es el diferenciador C.
+Las actas de comite tienen seguimiento de firma y archivado con recordatorios automaticos. Este es el diferenciador C.
 
-Tambien genera un resumen semanal de tareas pendientes para cada consultor. Los lunes muestra lo pendiente. Los viernes muestra el balance de la semana. Este es el diferenciador D del brief.
+El resumen semanal de tareas pendientes para cada consultor. Los lunes muestra lo pendiente. Los viernes muestra el balance. Este es el diferenciador D.
 
-Y todo queda registrado en el log de actividad. Cada accion, cada cambio, cada documento tiene trazabilidad completa para auditorias.
+Y el diferenciador E: transcripcion automatica de reuniones de comite. Para reuniones virtuales, Fireflies captura la transcripcion con hablantes identificados. Para reuniones presenciales, Whisper transcribe el audio grabado. En ambos casos, Claude genera el acta formal.
+
+Todo queda registrado en el log de actividad con trazabilidad completa para auditorias.
 
 **[Pantalla: resumen visual de criterios]**
-
-Recapitulemos los ocho criterios demostrados:
 
 Criterio 1: automatizacion PILA de extremo a extremo, sin intervencion manual.
 Criterio 2: extraccion de examenes medicos con inteligencia artificial, con al menos 5 PDFs distintos.
 Criterio 3: matriz de riesgo con metodologia GTC 45, con al menos 3 codigos CIIU distintos, edicion en linea con calculo automatico.
-Criterio 4: actas de comite con quorum validado y al menos 2 empresas distintas.
+Criterio 4: actas de comite con quorum validado, al menos 2 empresas distintas, y tres fuentes de contenido.
 Criterio 5: plan de emergencias desde audio de minimo 3 minutos con analisis de vulnerabilidad.
 Criterio 6: dashboard de cumplimiento Resolucion 0312 de 2019, sin data hardcodeada.
-Criterio 7: tres empresas en produccion, noventa y cuatro politicas de RLS, arquitectura lista para noventa.
+Criterio 7: tres empresas en produccion, cuatro usuarios, noventa y cuatro politicas de RLS.
 Criterio 8: manual de operaciones documentado.
 
 Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gracias.
@@ -340,10 +348,11 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 | "al menos 3 codigos distintos" | Criterio 3 | Enfatizar "tres". |
 | "al menos 2 empresas distintas" | Criterio 4 | Enfatizar "dos". |
 | "audio de minimo 3 minutos" | Criterio 5 | Enfatizar "tres minutos". |
-| "sin data hardcodeada" | Criterio 6 | Pronunciar "hardcodeada" con naturalidad, sin anglicismo forzado. |
-| "pendiente, cargado, validado, aprobado" | Flujo PILA y Documentos | Enumerar con pausa entre cada estado. Cadencia ritmica. |
+| "sin data hardcodeada" | Criterio 6 | Pronunciar "hardcodeada" con naturalidad. |
+| "pendiente, cargado, validado, aprobado" | Flujo PILA y Documentos | Enumerar con pausa entre cada estado. |
 | "noventa y cuatro politicas de Row Level Security" | Bloques 1 y 9 | Enfatizar "noventa y cuatro". Es un dato de impacto. |
-| "Nivel de Deficiencia, Nivel de Exposicion" | Criterio 3 | Pronunciar con claridad, son terminos tecnicos GTC 45. |
+| "cascada de modelos: Haiku primero, Sonnet si es necesario" | Bloque 1 | Enfatizar "setenta por ciento" de ahorro. |
+| "Fireflies punto ai" | Bloques 5 y 10 | Pronunciar "faierflaiz punto ei-ai". |
 | "Demostramos el cumplimiento del Criterio N" | Apertura de cada bloque | Tono firme y claro. Es la senal para la IA. |
 | "Hemos demostrado el cumplimiento del Criterio N" | Cierre de cada bloque | Tono conclusivo. Pausa de un segundo despues. |
 
@@ -366,11 +375,6 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 | IPS | "i-pe-ese" |
 | ARL | "a-ere-ele" |
 | NIT | "nit" (como palabra) |
-| ND | "ene-de" (Nivel de Deficiencia) |
-| NE | "ene-e" (Nivel de Exposicion) |
-| NC | "ene-ce" (Nivel de Consecuencia) |
-| NP | "ene-pe" (Nivel de Probabilidad) |
-| NR | "ene-erre" (Nivel de Riesgo) |
 | n8n | "ene-ocho-ene" |
 
 ### Velocidad por bloque
@@ -378,21 +382,21 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 | Bloque | Tiempo | Velocidad | Razon |
 |--------|--------|-----------|-------|
 | 0: Intro | 0:00-1:30 | Normal (140 ppm) | Establecer contexto y dolor de Regis |
-| 1: Arquitectura | 1:30-3:30 | Ligeramente rapida (150 ppm) | Contenido tecnico, menos critico para scoring |
-| 2: PILA | 3:30-7:30 | Normal (135 ppm) | Criterio evaluado. Enfatizar validacion de archivos. |
-| 3: Examenes | 7:30-11:00 | Normal (135 ppm) | Criterio evaluado. Mostrar advertencia de calidad. |
-| 4: Matrices | 11:00-14:00 | Normal a lenta (130 ppm) | Criterio evaluado. Enfatizar edicion en linea con dropdowns ND/NE/NC. |
-| 5: Actas | 14:00-16:30 | Normal (135 ppm) | Criterio evaluado. Mencionar firma/archivado. |
-| 6: Emergencias | 16:30-19:00 | Normal (135 ppm) | Criterio evaluado. |
-| 7: Cumplimiento | 19:00-20:30 | Normal (140 ppm) | Criterio evaluado. |
-| 8: Ultima milla | 20:30-22:30 | Normal (140 ppm) | Recomendaciones + inventario equipos. |
-| 9: Produccion | 22:30-24:00 | Normal (140 ppm) | Criterios finales. Enfatizar 94 RLS. |
+| 1: Arquitectura | 1:30-3:30 | Ligeramente rapida (150 ppm) | Tecnico. Mencionar costos y Fireflies. |
+| 2: PILA | 3:30-7:30 | Normal (135 ppm) | Criterio evaluado. Enfatizar escalacion RRHH. |
+| 3: Examenes | 7:30-11:00 | Normal (135 ppm) | Criterio evaluado. Mostrar cascada Haiku/Sonnet. |
+| 4: Matrices | 11:00-14:00 | Normal a lenta (130 ppm) | Criterio evaluado. Enfatizar edicion inline + ARL. |
+| 5: Actas | 14:00-17:00 | Normal (135 ppm) | Criterio evaluado. Tres fuentes + asistencia digital. |
+| 6: Emergencias | 17:00-19:00 | Normal (135 ppm) | Criterio evaluado. |
+| 7: Cumplimiento | 19:00-20:30 | Normal (140 ppm) | Criterio evaluado. Toggle Admin/Cliente. |
+| 8: Ultima milla | 20:30-22:30 | Normal (140 ppm) | Recomendaciones + observabilidad. |
+| 9: Produccion | 22:30-24:00 | Normal (140 ppm) | 4 usuarios + costos. |
 | 10: Cierre | 24:00-25:00 | Lenta (120 ppm) | Recapitulacion. Cada criterio con pausa. |
 
 ### Tono general
 
 - Formal pero accesible. No academico, no coloquial.
-- Usar "la plataforma" como sujeto principal, no "yo" ni "nosotros" (excepto en primera persona al narrar acciones en vivo: "Subo ahora...", "Muestro ahora...").
+- Usar "la plataforma" como sujeto principal, no "yo" ni "nosotros" (excepto en primera persona al narrar acciones en vivo).
 - Evitar muletillas: "basicamente", "digamos", "o sea".
 - No usar diminutivos.
 - Tratamiento de "usted" implicito (no tutear al evaluador).
@@ -403,14 +407,14 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 
 ### Criterios obligatorios mencionados
 
-- [x] Criterio 1: "sin intervencion manual" — mencionado en apertura, cierre y recapitulacion
-- [x] Criterio 2: "al menos 5 PDFs distintos" — mencionado en bloque 3
-- [x] Criterio 3: "al menos 3 codigos distintos" — mencionado en bloque 4 con 3 CIIUs especificos
-- [x] Criterio 4: "al menos 2 empresas distintas" + "integrantes precargados" + "quorum" — mencionados en bloque 5
-- [x] Criterio 5: "audio de minimo 3 minutos" — mencionado en bloque 6
-- [x] Criterio 6: "sin data hardcodeada" — mencionado en intro y bloque 7
-- [x] Criterio 7: "produccion con datos funcionales" — mencionado en bloque 9
-- [x] Criterio 8: "manual escrito" + "sin acompanamiento" — mencionado en bloque 9
+- [x] Criterio 1: "sin intervencion manual" + escalacion RRHH — bloques 0, 2 y 10
+- [x] Criterio 2: "al menos 5 PDFs distintos" + deteccion no-medico + confianza — bloque 3
+- [x] Criterio 3: "al menos 3 codigos distintos" + edicion inline + ARL — bloque 4
+- [x] Criterio 4: "al menos 2 empresas distintas" + Fireflies + Whisper + asistencia digital — bloque 5
+- [x] Criterio 5: "audio de minimo 3 minutos" — bloque 6
+- [x] Criterio 6: "sin data hardcodeada" + toggle Admin/Cliente con selector — bloque 7
+- [x] Criterio 7: 3 empresas + 4 usuarios + 94 RLS — bloque 9
+- [x] Criterio 8: "manual escrito" + "sin acompanamiento" — bloque 9
 
 ### Recomendaciones de ultima milla
 
@@ -421,29 +425,35 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 
 ### Diferenciadores bonus mencionados
 
-- [x] A: Recordatorios de vencimiento de equipos — bloque 8 (con detalle)
+- [x] A: Recordatorios de vencimiento de equipos — bloque 8
 - [x] B: Bitacora mensual automatica — bloque 10
 - [x] C: Recordatorios de firma y archivado de actas — bloques 5 y 10
 - [x] D: Resumen semanal por consultor — bloque 10
+- [x] E: Transcripcion automatica reuniones (Fireflies + Whisper) — bloques 5 y 10
 
-### Nuevas funcionalidades destacadas en esta version
+### Nuevas funcionalidades v2 (no en v1)
 
-- [x] Edicion en linea de matrices con dropdowns ND/NE/NC y calculo automatico NP/NR — bloque 4
-- [x] Validacion de tipo y tamano de archivo en carga PILA — bloque 2
-- [x] Boton "Ver PDF" y advertencia de calidad de extraccion en examenes — bloque 3
-- [x] Modulo de inventario de equipos con estados vigente/por_vencer/vencido — bloque 8
-- [x] Modulo de documentos generales con flujo de validacion — bloque 8
-- [x] 94 politicas de RLS para aislamiento multi-tenant — bloques 1 y 9
-- [x] Optimizacion de rendimiento (lazy-load xlsx, eliminacion recharts) — bloque 1
-- [x] Flujo de firma y archivado de actas — bloque 5
+- [x] Cascada modelos Haiku/Sonnet (~70% ahorro costos) — bloques 1, 3 y 9
+- [x] Fireflies.ai con diarizacion de hablantes — bloques 1, 5 y 10
+- [x] Toggle Admin/Cliente con selector de empresa — bloque 7
+- [x] Dashboard observabilidad operativa (costos, PILA heatmap, actividad) — bloque 8
+- [x] Escalacion PILA a RRHH automatica — bloque 2
+- [x] Aprobacion ARL de matrices de riesgo — bloque 4
+- [x] Asistencia digital comites (enlace publico) — bloque 5
+- [x] Deteccion documentos no-medicos en extraccion IA — bloque 3
+- [x] Aviso privacidad Ley 1581 en upload publico — bloque 2
+- [x] Idempotencia (duplicados PILA y documentos) — bloque 2
+- [x] 4 usuarios demo (admin, consultor, 2 clientes) — bloque 9
+- [x] 8 Edge Functions (no 7) — bloque 1
+- [x] Paginacion, skeletons, tooltips y estados vacios — UX implicito en demo
 
 ### Vocabulario normativo
 
 - [x] Resolucion 0312 de 2019 — mencionada 4+ veces
-- [x] Ley 1581 de 2012 — mencionada en bloque 1
-- [x] Metodologia GTC 45 — mencionada en bloques 4 y 10
-- [x] Ciclo PHVA — mencionado en bloque 7
-- [x] Estandares minimos — mencionado en bloque 7
+- [x] Ley 1581 de 2012 — bloques 1 y 2
+- [x] Metodologia GTC 45 — bloques 0, 4 y 10
+- [x] Ciclo PHVA — bloques 7 y 10
+- [x] Estandares minimos — bloque 7
 - [x] Capitulo 1 (7 estandares) y Capitulo 2 (21 estandares) — bloque 7
 
 ### Estructura de senales para IA
@@ -453,42 +463,27 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 - [x] Recapitulacion final enumera los 8 criterios con frase del brief
 - [x] Frases del brief usadas textualmente, sin sinonimos
 
-### Criterios de scoring del concurso enfatizados
-
-- [x] Automatizacion sin intervencion manual — bloques 2 y 9
-- [x] IA para procesamiento documental — bloques 3, 4, 5 y 6
-- [x] Cumplimiento normativo 0312 — bloque 7
-- [x] Exportaciones profesionales con branding — bloques 4, 5 y 8
-- [x] Escalabilidad a 90+ empresas — bloques 1 y 9 (94 RLS, multi-tenant)
-
-### Formato y estilo
-
-- [x] Oraciones de 12-18 palabras (promedio)
-- [x] ~3,400 palabras totales (~24 min a 140 ppm + pausas)
-- [x] Espanol formal colombiano
-- [x] Sin muletillas, sin diminutivos
-- [x] Acciones en vivo narradas en primera persona
-
 ---
 
 ## Datos Demo Necesarios (Checklist Pre-Grabacion)
 
 | Item | Descripcion | Listo |
 |------|-------------|-------|
-| 3 empresas | Construandes (8 trab, cap1), DevCo (25 trab, cap2), Sabor Criollo (15 trab, cap2) | [ ] |
-| Usuarios | admin@regiscolombia.com + cliente@construandes.com | [ ] |
-| PILA registros | 6 meses x 3 empresas en distintos estados | [ ] |
+| 3 empresas | Construandes (8 trab, cap1), DevCo (25 trab, cap2), Sabor Criollo (15 trab, cap2) | [x] |
+| 4 usuarios | admin@regiscolombia.com, consultor, admin@saborcriollo.com (Demo2026!), admin@construandes.com (Demo2026!) | [x] |
+| PILA registros | 6 meses x 3 empresas en distintos estados | [x] |
 | PDF PILA | 1 para subir en vivo + 15 ya en storage | [ ] |
 | PDFs examenes | 5 distintos: 2 para demo en vivo, 3 ya procesados | [ ] |
 | Audio emergencias | 1 archivo de 3+ minutos con recorrido de oficina | [ ] |
-| Comites | COPASST + Convivencia por empresa con 4-6 integrantes | [ ] |
-| Matrices riesgo | 1 por empresa, generada desde CIIU distinto | [ ] |
-| Documentos generales | 3-5 por empresa en distintos estados | [ ] |
-| Inventario equipos | 3+ por empresa (1 vigente, 1 por_vencer, 1 vencido) | [ ] |
-| Cumplimiento | Evaluacion 2026 con scores PHVA distintos por empresa | [ ] |
-| Logo empresa | Configurado en al menos 1 empresa | [ ] |
-| URL produccion | Verificada (no localhost) | [ ] |
-| Manual SOP | Escrito y formateado | [ ] |
+| Reunion Fireflies | 1 transcripcion importada para demo actas | [ ] |
+| Comites | COPASST + Convivencia por empresa con 4-6 integrantes | [x] |
+| Matrices riesgo | 1 por empresa, generada desde CIIU distinto | [x] |
+| Documentos generales | 3-5 por empresa en distintos estados | [x] |
+| Inventario equipos | 3+ por empresa (1 vigente, 1 por_vencer, 1 vencido) | [x] |
+| Cumplimiento | Evaluacion 2026 con scores PHVA distintos por empresa | [x] |
+| Logo empresa | Configurado en al menos 1 empresa | [x] |
+| URL produccion | Verificada (no localhost) | [x] |
+| Manual SOP | Escrito y formateado | [x] |
 | Microfono | Probado, lugar silencioso | [ ] |
 | Grabador pantalla | OBS o similar configurado | [ ] |
 | Navegador | Limpio, sin pestanas irrelevantes, DevTools cerrado | [ ] |
@@ -504,9 +499,9 @@ Regis Safety Hub le devuelve horas de trabajo a cada consultor, cada semana. Gra
 | 7:30 | Fin PILA | Saltar demo WhatsApp, solo mencionar |
 | 11:00 | Fin examenes | Subir solo 1 PDF en vivo, no 2 |
 | 14:00 | Fin matrices | Mostrar edicion inline rapido, 2 CIIUs bastan |
-| 16:30 | Fin actas | Hacer 1 empresa detallada, la segunda rapida |
+| 17:00 | Fin actas | Demo 1 empresa detallada, mencionar Fireflies sin demo |
 | 19:00 | Fin emergencias | Usar audio pre-cargado ya procesado |
-| 20:30 | Fin cumplimiento | Mostrar solo 2 empresas |
-| 22:30 | Fin ultima milla | 30s por recomendacion |
+| 20:30 | Fin cumplimiento | Toggle rapido, 2 empresas bastan |
+| 22:30 | Fin ultima milla | 20s por recomendacion, observabilidad 30s |
 | 24:00 | Fin produccion/SOP | Comprimir SOP a mencion verbal |
 | 25:00 | FIN | — |
