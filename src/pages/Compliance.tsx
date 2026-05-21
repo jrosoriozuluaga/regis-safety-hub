@@ -81,8 +81,8 @@ export default function Compliance() {
         supabase.from("pila_records").select("id").eq("empresa_id", selectedEmpresa).eq("estado", "aprobada"),
         supabase.from("examenes_medicos").select("*", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa),
         supabase.from("matrices_riesgo").select("*", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa),
-        supabase.from("actas_comite").select("*, comites!inner(tipo)", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa).eq("comites.tipo", "copasst"),
-        supabase.from("actas_comite").select("*, comites!inner(tipo)", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa).eq("comites.tipo", "convivencia"),
+        supabase.from("actas_comite").select("*, comites!inner(tipo, empresa_id)", { count: "exact", head: true }).eq("comites.empresa_id", selectedEmpresa).eq("comites.tipo", "copasst"),
+        supabase.from("actas_comite").select("*, comites!inner(tipo, empresa_id)", { count: "exact", head: true }).eq("comites.empresa_id", selectedEmpresa).eq("comites.tipo", "convivencia"),
         supabase.from("planes_emergencia").select("*", { count: "exact", head: true }).eq("empresa_id", selectedEmpresa),
       ]);
 

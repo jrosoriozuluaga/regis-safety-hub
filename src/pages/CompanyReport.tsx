@@ -100,7 +100,7 @@ export default function CompanyReport() {
           supabase.from("examenes_medicos").select("*", { count: "exact", head: true }).eq("empresa_id", selectedId).eq("concepto_aptitud", "apto_con_restricciones"),
           supabase.from("matrices_riesgo").select("*", { count: "exact", head: true }).eq("empresa_id", selectedId),
           supabase.from("comites").select("*", { count: "exact", head: true }).eq("empresa_id", selectedId),
-          supabase.from("actas_comite").select("*", { count: "exact", head: true }).eq("empresa_id", selectedId),
+          supabase.from("actas_comite").select("*, comites!inner(empresa_id)", { count: "exact", head: true }).eq("comites.empresa_id", selectedId),
           supabase.from("planes_emergencia").select("*", { count: "exact", head: true }).eq("empresa_id", selectedId),
           cumplimientoService.getLatest(selectedId),
         ]);
