@@ -6,6 +6,32 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** Safely convert Uint8Array to base64 without exceeding call stack (chunked) */
+function uint8ToBase64(bytes: Uint8Array): string {
+  const CHUNK = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + CHUNK, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+/** Parse JSON from Claude response, stripping markdown fences if present */
+function extractJSON(text: string): any {
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*\n?/, "").replace(/\n?\s*```\s*$/, "");
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*\n?/, "").replace(/\n?\s*```\s*$/, "");
+  }
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned.trim());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -29,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const pdfBytes = await pdfFile.arrayBuffer();
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+    const pdfBase64 = uint8ToBase64(new Uint8Array(pdfBytes));
 
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     
@@ -108,11 +134,7 @@ INSTRUCCIONES:
 
           if (claudeRes.ok) {
             const claudeData = await claudeRes.json();
-            let jsonText = claudeData.content[0].text.trim();
-            if (jsonText.startsWith("```")) {
-              jsonText = jsonText.replace(/^```(?:json)?\\n?/, "").replace(/\\n?```$/, "");
-            }
-            extracted = JSON.parse(jsonText);
+            extracted = extractJSON(claudeData.content[0].text);
             usedAI = true;
             console.log(`Success with model: ${model}`);
             break;

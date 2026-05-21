@@ -6,6 +6,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** Parse JSON from Claude response, stripping markdown fences if present */
+function extractJSON(text: string): any {
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*\n?/, "").replace(/\n?\s*```\s*$/, "");
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*\n?/, "").replace(/\n?\s*```\s*$/, "");
+  }
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned.trim());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -97,9 +113,7 @@ Deno.serve(async (req) => {
           });
           if (claudeRes.ok) {
             const data = await claudeRes.json();
-            let text = data.content[0].text.trim();
-            if (text.startsWith("```")) text = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-            analisis_json = JSON.parse(text);
+            analisis_json = extractJSON(data.content[0].text);
             aiUsed = true;
             break;
           }
