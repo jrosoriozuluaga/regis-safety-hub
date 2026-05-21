@@ -234,33 +234,53 @@ export default function Documents() {
 
       const publicUrl = urlData?.signedUrl ?? null;
 
-      /* 3. Insert DB row */
-      const { error: dbError } = await supabase.from("documentos").insert({
-        empresa_id: uploadEmpresa,
-        tipo: uploadTipo,
-        nombre_archivo: uploadFile.name,
-        archivo_url: publicUrl,
-        estado: "cargado",
-        fecha_recepcion: new Date().toISOString(),
-      });
+      /* 3. Check for existing document (same empresa + tipo + nombre) */
+      const { data: existingDoc } = await supabase
+        .from("documentos")
+        .select("id")
+        .eq("empresa_id", uploadEmpresa)
+        .eq("tipo", uploadTipo)
+        .eq("nombre_archivo", uploadFile.name)
+        .maybeSingle();
 
-      if (dbError) throw dbError;
+      let isUpdate = false;
+      if (existingDoc) {
+        /* Update existing document */
+        const { error: dbError } = await supabase.from("documentos").update({
+          archivo_url: publicUrl,
+          estado: "cargado",
+          fecha_recepcion: new Date().toISOString(),
+        }).eq("id", existingDoc.id);
+        if (dbError) throw dbError;
+        isUpdate = true;
+      } else {
+        /* Insert new document */
+        const { error: dbError } = await supabase.from("documentos").insert({
+          empresa_id: uploadEmpresa,
+          tipo: uploadTipo,
+          nombre_archivo: uploadFile.name,
+          archivo_url: publicUrl,
+          estado: "cargado",
+          fecha_recepcion: new Date().toISOString(),
+        });
+        if (dbError) throw dbError;
+      }
 
       /* 4. Log activity */
       await logsService.log({
-        tipo: "carga_archivo",
+        tipo: isUpdate ? "actualizar" : "carga_archivo",
         modulo: "documentos",
-        descripcion: `Documento "${tipoLabel(uploadTipo)}" cargado: ${uploadFile.name}`,
+        descripcion: `Documento "${tipoLabel(uploadTipo)}" ${isUpdate ? "actualizado" : "cargado"}: ${uploadFile.name}`,
         empresa_id: uploadEmpresa,
         usuario_id: user?.id,
-        metadata: { tipo: uploadTipo, filename: uploadFile.name },
+        metadata: { tipo: uploadTipo, filename: uploadFile.name, updated: isUpdate },
       });
 
       /* 5. Refresh & close */
       await fetchDocuments();
       setUploadOpen(false);
       resetUploadForm();
-      toast.success("Documento cargado exitosamente");
+      toast.success(isUpdate ? "Documento actualizado (ya existía uno con el mismo nombre y tipo)" : "Documento cargado exitosamente");
     } catch (err: any) {
       console.error(err);
       toast.error(err.message ?? "Error al cargar el documento");

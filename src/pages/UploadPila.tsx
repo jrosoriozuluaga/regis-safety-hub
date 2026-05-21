@@ -115,6 +115,7 @@ export default function UploadPila() {
         await supabase.from("pila_records").update({
           estado: "cargada",
           fecha_carga: now,
+          intentos_notificacion: 0,
           archivo_url: archivoUrl,
         }).eq("id", existing.id);
       } else {
