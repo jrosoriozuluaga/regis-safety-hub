@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive, Link2, Copy, UserCheck, Bell } from "lucide-react";
+import { FileText, Sparkles, Loader2, Printer, AlertTriangle, CheckCircle2, History, Clock, MapPin, PenLine, Archive, Link2, Copy, UserCheck, Bell, Mic, Video, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { empresasService, comitesService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
 import type { Empresa, Comite, IntegranteComite, ActaComite } from "@/types/domain";
@@ -39,6 +40,17 @@ export default function Committees() {
   const [horaFin, setHoraFin] = useState(() => new Date(Date.now() + 3600000).toTimeString().slice(0, 5));
 
   const [asistenciaLink, setAsistenciaLink] = useState("");
+
+  // Meeting transcription state (T69)
+  const [firefliesMeetings, setFirefliesMeetings] = useState<any[]>([]);
+  const [loadingFireflies, setLoadingFireflies] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState("");
+  const [transcripcionPreview, setTranscripcionPreview] = useState("");
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [transcribingAudio, setTranscribingAudio] = useState(false);
+  const [editableTranscription, setEditableTranscription] = useState("");
+  const [firefliesError, setFirefliesError] = useState("");
 
   // Quorum calculation
   const presentCount = Object.values(attendance).filter(Boolean).length;
@@ -232,22 +244,246 @@ export default function Committees() {
                 <Input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="points">Puntos a tratar (uno por linea)</Label>
-              <Textarea id="points" rows={5} value={points} onChange={(e) => setPoints(e.target.value)} placeholder={"Revision de inspecciones de seguridad\nSeguimiento a incidentes reportados\nEstado de capacitaciones SST\nRevision de EPP"} />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={handleGenerate} disabled={generating || (members.length > 0 && !hasQuorum)} className="gap-2">
-                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {generating ? "Generando con IA..." : "Generar Acta con IA"}
-              </Button>
-              {members.length > 0 && !hasQuorum && (
-                <span className="text-sm text-destructive flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4" />
-                  Sin quorum ({presentCount}/{quorumRequired} requeridos)
-                </span>
-              )}
-            </div>
+            {/* Tabs: Manual vs Desde reunión */}
+            <Tabs defaultValue="manual" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="manual" className="text-xs gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Crear acta manual</TabsTrigger>
+                <TabsTrigger value="reunion" className="text-xs gap-1.5"><Video className="h-3.5 w-3.5" /> Desde reunion</TabsTrigger>
+              </TabsList>
+
+              {/* Tab 1: Manual (original flow) */}
+              <TabsContent value="manual" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="points">Puntos a tratar (uno por linea)</Label>
+                  <Textarea id="points" rows={5} value={points} onChange={(e) => setPoints(e.target.value)} placeholder={"Revision de inspecciones de seguridad\nSeguimiento a incidentes reportados\nEstado de capacitaciones SST\nRevision de EPP"} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button onClick={handleGenerate} disabled={generating || (members.length > 0 && !hasQuorum)} className="gap-2">
+                    {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {generating ? "Generando con IA..." : "Generar Acta con IA"}
+                  </Button>
+                  {members.length > 0 && !hasQuorum && (
+                    <span className="text-sm text-destructive flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Sin quorum ({presentCount}/{quorumRequired} requeridos)
+                    </span>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Tab 2: From meeting (Fireflies or audio) */}
+              <TabsContent value="reunion" className="space-y-4 mt-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Fireflies import */}
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Video className="h-4 w-4 text-purple-600" />
+                      Reunion virtual (Fireflies)
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Importa la transcripcion con identificacion de hablantes desde Fireflies.ai
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5"
+                      disabled={loadingFireflies}
+                      onClick={async () => {
+                        setLoadingFireflies(true);
+                        setFirefliesError("");
+                        try {
+                          const { data, error } = await supabase.functions.invoke("fetch-fireflies-transcripts", {
+                            body: { action: "list" },
+                          });
+                          if (error) throw error;
+                          if (data.error) {
+                            setFirefliesError(data.message || data.error);
+                            return;
+                          }
+                          setFirefliesMeetings(data.transcripts || []);
+                          if ((data.transcripts || []).length === 0) {
+                            toast.info("No se encontraron reuniones recientes en Fireflies");
+                          }
+                        } catch (err: any) {
+                          setFirefliesError("No se pudo conectar con Fireflies. Verifica la API key.");
+                        } finally {
+                          setLoadingFireflies(false);
+                        }
+                      }}
+                    >
+                      {loadingFireflies ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
+                      {loadingFireflies ? "Obteniendo reuniones..." : "Conectar con Fireflies"}
+                    </Button>
+                    {firefliesError && (
+                      <p className="text-xs text-amber-600 bg-amber-50 rounded p-2">
+                        {firefliesError}
+                      </p>
+                    )}
+                    {firefliesMeetings.length > 0 && (
+                      <Select value={selectedMeeting} onValueChange={async (id) => {
+                        setSelectedMeeting(id);
+                        setLoadingTranscript(true);
+                        try {
+                          const { data, error } = await supabase.functions.invoke("fetch-fireflies-transcripts", {
+                            body: { action: "get", transcript_id: id },
+                          });
+                          if (error) throw error;
+                          const texto = data.transcript?.transcripcion_texto || "";
+                          setTranscripcionPreview(texto);
+                          setEditableTranscription(texto);
+                          toast.success("Transcripcion importada");
+                        } catch (err: any) {
+                          toast.error("Error al importar transcripcion");
+                        } finally {
+                          setLoadingTranscript(false);
+                        }
+                      }}>
+                        <SelectTrigger className="text-xs">
+                          <SelectValue placeholder="Selecciona una reunion" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {firefliesMeetings.map((m: any) => (
+                            <SelectItem key={m.id} value={m.id} className="text-xs">
+                              {m.title} — {m.date ? new Date(m.date).toLocaleDateString("es-CO") : ""}
+                              {m.duration ? ` (${Math.round(m.duration / 60)} min)` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  {/* Audio upload */}
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Mic className="h-4 w-4 text-blue-600" />
+                      Reunion presencial (audio)
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Sube una grabacion de audio. Se transcribe con Whisper (sin hablantes).
+                    </p>
+                    <label className="flex items-center justify-center gap-2 w-full h-9 rounded-md border border-input bg-background px-3 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground">
+                      <Upload className="h-3.5 w-3.5" />
+                      {audioFile ? audioFile.name : "Seleccionar audio"}
+                      <input
+                        type="file"
+                        accept=".mp3,.wav,.m4a,.webm,.ogg"
+                        className="hidden"
+                        onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    {audioFile && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-1.5"
+                        disabled={transcribingAudio}
+                        onClick={async () => {
+                          if (!audioFile || !selectedEmpresa) return;
+                          setTranscribingAudio(true);
+                          try {
+                            // Upload to storage
+                            const ext = audioFile.name.split(".").pop();
+                            const path = `comites/${selectedEmpresa}/audio_${Date.now()}.${ext}`;
+                            await supabase.storage.from("documentos").upload(path, audioFile, { upsert: true });
+                            const { data: urlData } = await supabase.storage.from("documentos").createSignedUrl(path, 3600);
+
+                            // Transcribe
+                            const { data, error } = await supabase.functions.invoke("transcribe-audio", {
+                              body: { audio_url: urlData?.signedUrl, empresa_id: selectedEmpresa },
+                            });
+                            if (error) throw error;
+                            const texto = data.transcripcion || data.texto || "";
+                            setTranscripcionPreview(texto);
+                            setEditableTranscription(texto);
+                            toast.success("Audio transcrito exitosamente");
+                          } catch (err: any) {
+                            toast.error("Error al transcribir el audio");
+                          } finally {
+                            setTranscribingAudio(false);
+                          }
+                        }}
+                      >
+                        {transcribingAudio ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic className="h-3.5 w-3.5" />}
+                        {transcribingAudio ? "Transcribiendo..." : "Transcribir audio"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Transcription preview + generate */}
+                {(transcripcionPreview || loadingTranscript) && (
+                  <div className="space-y-3">
+                    {loadingTranscript ? (
+                      <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Importando transcripcion...
+                      </div>
+                    ) : (
+                      <>
+                        <Label>Transcripcion (editable)</Label>
+                        <Textarea
+                          rows={8}
+                          value={editableTranscription}
+                          onChange={(e) => setEditableTranscription(e.target.value)}
+                          className="font-mono text-xs"
+                          placeholder="La transcripcion aparecera aqui..."
+                        />
+                        <Button
+                          className="gap-2"
+                          disabled={generating || !editableTranscription.trim()}
+                          onClick={async () => {
+                            if (!selectedComite || !editableTranscription.trim()) return;
+                            setGenerating(true);
+                            setGeneratedActa("");
+                            try {
+                              const { data, error } = await supabase.functions.invoke("generate-acta", {
+                                body: {
+                                  comite_id: selectedComite,
+                                  tipo_reunion: tipoReunion,
+                                  lugar,
+                                  hora_inicio: horaInicio,
+                                  hora_fin: horaFin,
+                                  transcripcion: editableTranscription,
+                                  asistentes_ids: Object.entries(attendance).filter(([, v]) => v).map(([k]) => k),
+                                },
+                              });
+                              if (error) throw error;
+                              setGeneratedActa(data.contenido);
+
+                              // Reload actas
+                              const updatedActas = await comitesService.actas(selectedComite);
+                              setActas(updatedActas);
+
+                              await logsService.log({
+                                tipo: "crear",
+                                modulo: "comites",
+                                descripcion: `Acta generada desde transcripcion (${selectedMeeting ? "Fireflies" : "audio"}) para comité ${tipoComite}`,
+                                empresa_id: selectedEmpresa || undefined,
+                                usuario_id: user?.id,
+                                metadata: { comite_id: selectedComite, tipo_comite: tipoComite, fuente: selectedMeeting ? "fireflies" : "audio" },
+                              });
+
+                              toast.success("Acta generada desde transcripcion");
+                              setTranscripcionPreview("");
+                              setEditableTranscription("");
+                              setSelectedMeeting("");
+                              setAudioFile(null);
+                            } catch (err: any) {
+                              toast.error(err.message || "Error al generar acta desde transcripcion");
+                            } finally {
+                              setGenerating(false);
+                            }
+                          }}
+                        >
+                          {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          {generating ? "Generando acta..." : "Generar acta desde transcripcion"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
 
             {/* Attendance link generator */}
             {selectedComite && actas.length > 0 && (

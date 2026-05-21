@@ -17,10 +17,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { comite_id, tipo_reunion, lugar, hora_inicio, hora_fin, puntos_json, asistentes_ids } = await req.json();
+    const { comite_id, tipo_reunion, lugar, hora_inicio, hora_fin, puntos_json, asistentes_ids, transcripcion } = await req.json();
 
-    if (!comite_id || !tipo_reunion || !puntos_json) {
-      return new Response(JSON.stringify({ error: "comite_id, tipo_reunion, and puntos_json are required" }), {
+    if (!comite_id || !tipo_reunion) {
+      return new Response(JSON.stringify({ error: "comite_id and tipo_reunion are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -59,7 +59,38 @@ Deno.serve(async (req) => {
     const t0 = Date.now();
 
     if (anthropicKey) {
-      const prompt = `Eres un especialista en Seguridad y Salud en el Trabajo (SG-SST) en Colombia. Genera el acta de una reunión ${tipo_reunion} del ${tipo_comite_nombre} de la empresa ${empresa.razon_social}.\n\nDATOS DE LA REUNIÓN:\n- Fecha: ${fecha_reunion}\n- Hora: ${hora_inicio || "09:00"} a ${hora_fin || "10:00"}\n- Lugar: ${lugar || empresa.ciudad}\n- Número de acta: ${numero_acta}\n- NIT: ${empresa.nit}\n- Ciudad: ${empresa.ciudad}\n\nINTEGRANTES DEL COMITÉ:\n${JSON.stringify(integrantes?.map((i: any) => ({ nombre: i.nombre, cargo_empresa: i.cargo_empresa, rol_comite: i.rol_comite, es_principal: i.es_principal })), null, 2)}\n\nASISTENTES A ESTA REUNIÓN:\n${JSON.stringify(asistentes.map((a: any) => ({ nombre: a.nombre, cargo_empresa: a.cargo_empresa, rol_comite: a.rol_comite })), null, 2)}\n\nPUNTOS TRATADOS:\n${JSON.stringify(puntos_json, null, 2)}\n\nINSTRUCCIONES:\n1. Genera el acta completa con formato estándar colombiano.\n2. Verifica el quórum: se requiere mitad + 1 de los integrantes principales. Hay quórum: ${hay_quorum ? "Sí" : "No"}.\n3. Para cada punto tratado, desarrolla el contenido con redacción formal y técnica.\n4. Si es una reunión ordinaria, incluye temas típicos del ${tipo_comite_nombre}.\n5. Incluye sección de firmas al final.\n\nFORMATO: Responde con el texto completo del acta en markdown.`;
+      let prompt: string;
+
+      if (transcripcion) {
+        // Transcription-based prompt (Fireflies or Whisper)
+        const isFollowUp = tipo_reunion === "seguimiento";
+        prompt = `Eres un especialista en Seguridad y Salud en el Trabajo (SG-SST) en Colombia. Genera el acta de una reunión ${isFollowUp ? "de seguimiento" : tipo_reunion} del ${tipo_comite_nombre} de la empresa ${empresa.razon_social}.
+
+DATOS DE LA REUNIÓN:
+- Fecha: ${fecha_reunion}
+- Hora: ${hora_inicio || "09:00"} a ${hora_fin || "10:00"}
+- Lugar: ${lugar || empresa.ciudad}
+- Número de acta: ${numero_acta}
+- NIT: ${empresa.nit}
+
+INTEGRANTES DEL COMITÉ:
+${JSON.stringify(integrantes?.map((i: any) => ({ nombre: i.nombre, cargo_empresa: i.cargo_empresa, rol_comite: i.rol_comite })), null, 2)}
+
+TRANSCRIPCIÓN DE LA REUNIÓN (con hablantes identificados):
+${transcripcion}
+
+INSTRUCCIONES:
+1. Genera el acta formal completa basándote en la transcripción.
+2. Identifica la verificación de quórum basándote en los participantes.${isFollowUp ? "\n3. Incluye sección de 'Estado de compromisos anteriores' (cumplido / en progreso / pendiente) si se mencionan en la transcripción." : ""}
+${isFollowUp ? "4" : "3"}. Organiza por temas, atribuyendo intervenciones a cada hablante.
+${isFollowUp ? "5" : "4"}. Incluye sección de acuerdos y compromisos con responsables.
+${isFollowUp ? "6" : "5"}. Incluye cierre y sección de firmas al final.
+
+FORMATO: Acta profesional en español colombiano, formato markdown, lista para firmar.`;
+      } else {
+        // Points-based prompt (original manual flow)
+        prompt = `Eres un especialista en Seguridad y Salud en el Trabajo (SG-SST) en Colombia. Genera el acta de una reunión ${tipo_reunion} del ${tipo_comite_nombre} de la empresa ${empresa.razon_social}.\n\nDATOS DE LA REUNIÓN:\n- Fecha: ${fecha_reunion}\n- Hora: ${hora_inicio || "09:00"} a ${hora_fin || "10:00"}\n- Lugar: ${lugar || empresa.ciudad}\n- Número de acta: ${numero_acta}\n- NIT: ${empresa.nit}\n- Ciudad: ${empresa.ciudad}\n\nINTEGRANTES DEL COMITÉ:\n${JSON.stringify(integrantes?.map((i: any) => ({ nombre: i.nombre, cargo_empresa: i.cargo_empresa, rol_comite: i.rol_comite, es_principal: i.es_principal })), null, 2)}\n\nASISTENTES A ESTA REUNIÓN:\n${JSON.stringify(asistentes.map((a: any) => ({ nombre: a.nombre, cargo_empresa: a.cargo_empresa, rol_comite: a.rol_comite })), null, 2)}\n\nPUNTOS TRATADOS:\n${JSON.stringify(puntos_json, null, 2)}\n\nINSTRUCCIONES:\n1. Genera el acta completa con formato estándar colombiano.\n2. Verifica el quórum: se requiere mitad + 1 de los integrantes principales. Hay quórum: ${hay_quorum ? "Sí" : "No"}.\n3. Para cada punto tratado, desarrolla el contenido con redacción formal y técnica.\n4. Si es una reunión ordinaria, incluye temas típicos del ${tipo_comite_nombre}.\n5. Incluye sección de firmas al final.\n\nFORMATO: Responde con el texto completo del acta en markdown.`;
+      }
 
       const CHEAP_MODEL = "claude-haiku-4-5-20251001";
       const PREMIUM_MODEL = "claude-sonnet-4-20250514";
