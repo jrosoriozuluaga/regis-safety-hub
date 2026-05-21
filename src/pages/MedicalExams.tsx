@@ -96,12 +96,20 @@ export default function MedicalExams() {
       });
 
       const extracted = data.extracted;
-      setLastExtracted(extracted);
+      setLastExtracted({ ...extracted, _confianza: data.confianza_extraccion, _es_examen: data.es_examen_medico });
 
-      // Warn if extraction looks incomplete (concepto defaults to "apto" when AI can't extract)
-      const looksIncomplete = !extracted?.trabajador?.nombre && !extracted?.trabajador?.cedula;
-      if (looksIncomplete) {
-        toast.warning("La extracción no pudo identificar datos del trabajador. Verifique el concepto manualmente — puede haberse asignado 'Apto' por defecto.", { duration: 8000 });
+      // Check if document is not a medical exam
+      if (data.es_examen_medico === false) {
+        toast.error(data.message || "El documento no parece ser un examen médico ocupacional.", { duration: 8000 });
+        return;
+      }
+
+      // Show confidence-based feedback
+      const confianza = data.confianza_extraccion;
+      if (confianza === "baja") {
+        toast.warning("Extracción con baja confianza. Verifique todos los datos manualmente.", { duration: 8000 });
+      } else if (confianza === "media") {
+        toast.warning("Algunos datos pudieron no extraerse correctamente. Verifique el concepto de aptitud.", { duration: 6000 });
       }
 
       // Check for duplicates after extraction
@@ -109,7 +117,7 @@ export default function MedicalExams() {
       if (dup) {
         setDuplicateWarning(dup);
         toast.warning("Posible duplicado detectado. Este trabajador ya tiene un examen reciente registrado.", { duration: 6000 });
-      } else if (!looksIncomplete) {
+      } else if (confianza === "alta") {
         toast.success(data.message || "PDF procesado con IA exitosamente");
       }
 
@@ -189,14 +197,36 @@ export default function MedicalExams() {
               </div>
             )}
 
-            {lastExtracted?.trabajador && (
+            {lastExtracted?._es_examen === false && (
+              <div className="rounded-lg border border-red-300 bg-red-50 p-3 space-y-1">
+                <p className="text-xs font-semibold text-red-700 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" /> No es un examen médico
+                </p>
+                <p className="text-xs text-red-600">{lastExtracted.mensaje || "El documento no fue identificado como examen médico ocupacional."}</p>
+              </div>
+            )}
+
+            {lastExtracted?.trabajador && lastExtracted._es_examen !== false && (
               <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
-                <p className="text-xs font-semibold text-success flex items-center gap-1"><Sparkles className="h-3 w-3" /> Datos extraidos por IA:</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-success flex items-center gap-1"><Sparkles className="h-3 w-3" /> Datos extraídos por IA:</p>
+                  {lastExtracted._confianza && (
+                    <Badge variant="outline" className={`text-[10px] ${
+                      lastExtracted._confianza === "alta" ? "text-green-700 bg-green-50 border-green-200" :
+                      lastExtracted._confianza === "media" ? "text-yellow-700 bg-yellow-50 border-yellow-200" :
+                      "text-red-700 bg-red-50 border-red-200"
+                    }`}>
+                      {lastExtracted._confianza === "alta" ? "✓ Extracción confiable" :
+                       lastExtracted._confianza === "media" ? "⚠ Verificar datos" :
+                       "✗ Revisar manualmente"}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs"><strong>Nombre:</strong> {lastExtracted.trabajador.nombre || "—"}</p>
-                <p className="text-xs"><strong>Cedula:</strong> {lastExtracted.trabajador.cedula || "—"}</p>
+                <p className="text-xs"><strong>Cédula:</strong> {lastExtracted.trabajador.cedula || "—"}</p>
                 <p className="text-xs"><strong>Cargo:</strong> {lastExtracted.trabajador.cargo || "—"}</p>
                 <p className="text-xs"><strong>Tipo:</strong> {lastExtracted.examen?.tipo_examen || "—"}</p>
-                <p className="text-xs"><strong>Concepto:</strong> {lastExtracted.examen?.concepto_aptitud || "—"}</p>
+                <p className="text-xs"><strong>Concepto:</strong> {lastExtracted.examen?.concepto_aptitud?.replace(/_/g, " ") || "Pendiente de revisión"}</p>
                 {lastExtracted.recomendaciones?.length > 0 && (
                   <div className="pt-1">
                     <p className="text-xs font-semibold">Recomendaciones:</p>
