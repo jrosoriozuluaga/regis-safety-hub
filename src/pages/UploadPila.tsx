@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileDropzone } from "@/components/common/FileDropzone";
 import { supabase } from "@/lib/supabase";
+import logo from "@/assets/regis-logo.jpeg";
 
 const meses = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -149,8 +150,8 @@ export default function UploadPila() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <Shield className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center gap-3 mb-2">
+            <img src={logo} alt="Regis Colombia" className="h-12 w-12 object-contain rounded" />
             <h1 className="text-2xl font-bold text-slate-800">Regis Colombia</h1>
           </div>
           <p className="text-sm text-muted-foreground">Sistema de Gestion de Seguridad y Salud en el Trabajo</p>

@@ -771,6 +771,43 @@ export default function Companies() {
                   <Input value={form.telefono} onChange={(e) => updateField("telefono", e.target.value)} placeholder="300 123 4567" />
                 </div>
               </div>
+
+              {/* Logo upload */}
+              <div className="space-y-2 pt-2">
+                <Label>Logo de la empresa</Label>
+                <div className="flex items-center gap-4">
+                  {editingId && (() => {
+                    const emp = empresas.find(e => e.id === editingId);
+                    return (emp as any)?.logo_url ? (
+                      <img src={(emp as any).logo_url} alt="Logo" className="h-12 w-auto rounded border object-contain" />
+                    ) : null;
+                  })()}
+                  <Input
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="max-w-xs"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 2 * 1024 * 1024) { toast.error("El logo no debe superar 2 MB"); return; }
+                      if (!editingId) { toast.info("Guarde la empresa primero, luego suba el logo"); return; }
+                      try {
+                        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+                        const path = `logos/${editingId}/logo.${ext}`;
+                        const { error: upErr } = await supabase.storage.from("documentos").upload(path, file, { upsert: true });
+                        if (upErr) throw upErr;
+                        const { data: urlData } = await supabase.storage.from("documentos").createSignedUrl(path, 31536000);
+                        if (urlData?.signedUrl) {
+                          await supabase.from("empresas_cliente").update({ logo_url: urlData.signedUrl }).eq("id", editingId);
+                          toast.success("Logo actualizado");
+                          loadEmpresas();
+                        }
+                      } catch (err: any) { toast.error(err.message || "Error al subir logo"); }
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">PNG o JPG, máximo 2 MB. {!editingId && "Disponible después de crear la empresa."}</p>
+              </div>
             </div>
           </div>
 

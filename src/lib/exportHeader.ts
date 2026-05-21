@@ -35,6 +35,8 @@ export type ExportHeaderOptions = {
   empresaNombre?: string;
   /** Company NIT */
   empresaNit?: string;
+  /** Company logo URL (shown alongside Regis logo) */
+  empresaLogoUrl?: string;
   /** Document version (default "1.0") */
   version?: string;
   /** Generation date (default: now) */
@@ -63,10 +65,11 @@ export function getExportHeaderHTML(opts: ExportHeaderOptions): string {
       gap: 20px;
       font-family: 'Segoe UI', Arial, sans-serif;
     ">
-      <!-- Logo -->
-      <div style="flex-shrink: 0;">
+      <!-- Logos -->
+      <div style="flex-shrink: 0; display: flex; align-items: center; gap: 12px;">
         <img id="regis-logo-header" src="" alt="Regis Colombia"
           style="height: 60px; width: auto; object-fit: contain;" />
+        ${opts.empresaLogoUrl ? `<img src="${opts.empresaLogoUrl}" alt="${opts.empresaNombre || 'Empresa'}" style="height: 50px; width: auto; object-fit: contain; border-left: 1px solid #e2e8f0; padding-left: 12px;" />` : ""}
       </div>
 
       <!-- Company info -->
