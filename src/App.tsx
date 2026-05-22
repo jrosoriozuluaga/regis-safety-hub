@@ -38,6 +38,7 @@ const UploadPila = lazy(() => import("./pages/UploadPila"));
 const Observability = lazy(() => import("./pages/Observability"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AsistenciaComite = lazy(() => import("./pages/AsistenciaComite"));
+const CompanyOnboardingWizard = lazy(() => import("./pages/wizards/CompanyOnboardingWizard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -80,6 +81,7 @@ function AppInner() {
                 <Route path="/inventario-equipos" element={<EquipmentInventory />} />
                 {/* Admin/Consultor only routes */}
                 <Route element={<AdminRoute />}>
+                  <Route path="/onboarding-empresa" element={<CompanyOnboardingWizard />} />
                   <Route path="/usuarios" element={<Users />} />
                   <Route path="/configuracion" element={<Settings />} />
                   <Route path="/actividad" element={<ActivityLog />} />

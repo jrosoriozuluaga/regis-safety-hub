@@ -594,6 +594,9 @@ export default function Companies() {
               <Button size="sm" onClick={openNew} className="gap-1">
                 <Plus className="h-4 w-4" /> Nueva Empresa
               </Button>
+              <Button variant="outline" size="sm" onClick={() => window.location.href = "/onboarding-empresa"} className="gap-1">
+                <Building2 className="h-4 w-4" /> Onboarding Completo
+              </Button>
             </div>
           </div>
         </CardHeader>
