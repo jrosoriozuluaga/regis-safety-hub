@@ -82,7 +82,8 @@ export default function EmergencyPlans() {
     setAnalysis(null);
     try {
       const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
+      const fileName = (audioBlob instanceof File) ? audioBlob.name : "recording.webm";
+      formData.append("audio", audioBlob, fileName);
       formData.append("empresa_id", selectedEmpresa);
 
       // Race against timeout (90s)
