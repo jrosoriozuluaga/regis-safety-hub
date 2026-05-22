@@ -283,7 +283,7 @@ export default function Compliance() {
         description="Evaluación interactiva de estándares mínimos del SG-SST según ciclo PHVA."
       />
 
-      <div className="grid gap-6 lg:grid-cols-4 mb-6">
+      <div className="grid gap-6 grid-cols-2 lg:grid-cols-4 mb-6">
         {(user?.role === "admin" || user?.role === "consultor") && (
           <div className="lg:col-span-4 flex items-end gap-4">
             <div className="max-w-sm space-y-2 flex-1">

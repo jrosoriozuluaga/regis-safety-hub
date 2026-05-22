@@ -363,6 +363,7 @@ export default function Pila() {
         <CardContent className="p-0">
           {records.length > 0 ? (
             <>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -502,6 +503,7 @@ export default function Pila() {
                 })}
               </TableBody>
             </Table>
+            </div>
             <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} pageSize={pageSize} />
             </>
           ) : (

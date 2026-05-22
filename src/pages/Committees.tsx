@@ -663,7 +663,7 @@ export default function Committees() {
           <CardContent>
             <div className="divide-y">
               {actas.map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                <div key={a.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <div>

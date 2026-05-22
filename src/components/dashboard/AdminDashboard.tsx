@@ -227,7 +227,7 @@ export function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 {[
                   { label: "Aprobadas", value: pilaStats.aprobadas, color: "text-green-600" },
                   { label: "Pendientes", value: pilaStats.pendientes, color: "text-amber-600" },
@@ -308,7 +308,8 @@ export function AdminDashboard() {
         <CardHeader>
           <CardTitle className="text-lg">Empresas clientes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -333,6 +334,7 @@ export function AdminDashboard() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
