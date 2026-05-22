@@ -110,7 +110,7 @@ function getPastPeriods(count: number): string[] {
 
 function isOverdue(periodo: string, diaSolicitud: number = 16): boolean {
   const [y, m] = periodo.split("-").map(Number);
-  const deadline = new Date(y, m, diaSolicitud);
+  const deadline = new Date(y, m - 1, diaSolicitud);
   return new Date() > deadline;
 }
 
