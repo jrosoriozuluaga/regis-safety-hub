@@ -80,6 +80,9 @@ const SETTING_PLACEHOLDERS: Record<string, string> = {
   equipos_dias_aviso_vencimiento: "30",
 };
 
+/** Keys that are read-only — defined by regulation, not editable */
+const READONLY_KEYS = new Set(["resolucion_vigente"]);
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -185,6 +188,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {group.keys.map((key) => {
+                const isReadonly = READONLY_KEYS.has(key);
                 const saving = savingKeys.has(key);
                 const dirty = isDirty(key);
                 const lastUpdated = settingsMap[key]?.updated_at;
@@ -200,13 +204,22 @@ export default function SettingsPage() {
                         placeholder={SETTING_PLACEHOLDERS[key] || ""}
                         onChange={(e) => handleChange(key, e.target.value)}
                         className="max-w-lg"
+                        readOnly={isReadonly}
+                        disabled={isReadonly}
+                        title={isReadonly ? "Definido por la normativa vigente — no modificable" : undefined}
                       />
-                      {lastUpdated && (
+                      {isReadonly && (
+                        <p className="text-xs text-amber-600">
+                          Estos valores son definidos por la normativa vigente y no pueden modificarse.
+                        </p>
+                      )}
+                      {lastUpdated && !isReadonly && (
                         <p className="text-xs text-muted-foreground">
                           Última actualización: {new Date(lastUpdated).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       )}
                     </div>
+                    {!isReadonly && (
                     <Button
                       size="sm"
                       variant={dirty ? "default" : "outline"}
@@ -216,6 +229,7 @@ export default function SettingsPage() {
                     >
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     </Button>
+                    )}
                   </div>
                 );
               })}
