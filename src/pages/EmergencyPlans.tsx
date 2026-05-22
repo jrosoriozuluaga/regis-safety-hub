@@ -45,12 +45,17 @@ export default function EmergencyPlans() {
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+          : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+        const mediaRecorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+        const actualMime = mediaRecorder.mimeType || mimeType || "audio/webm";
         chunksRef.current = [];
         mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
         mediaRecorder.onstop = () => {
           stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          const blob = new Blob(chunksRef.current, { type: actualMime });
           processAudio(blob);
         };
         mediaRecorder.start();
@@ -82,7 +87,8 @@ export default function EmergencyPlans() {
     setAnalysis(null);
     try {
       const formData = new FormData();
-      const fileName = (audioBlob instanceof File) ? audioBlob.name : "recording.webm";
+      const ext = audioBlob.type?.includes("mp4") || audioBlob.type?.includes("m4a") ? "m4a" : "webm";
+      const fileName = (audioBlob instanceof File) ? audioBlob.name : `recording.${ext}`;
       formData.append("audio", audioBlob, fileName);
       formData.append("empresa_id", selectedEmpresa);
 
