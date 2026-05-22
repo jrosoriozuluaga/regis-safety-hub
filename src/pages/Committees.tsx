@@ -360,7 +360,7 @@ export default function Committees() {
                   <div className="rounded-lg border p-4 space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Mic className="h-4 w-4 text-blue-600" />
-                      Reunion presencial (audio)
+                      Grabacion de reunion
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Sube una grabacion de audio. Se transcribe con Whisper (sin hablantes).
