@@ -295,11 +295,11 @@ export default function MedicalExams() {
                       <TableRow key={ex.id}>
                         <TableCell className="font-medium">{ex.trabajador_nombre || "—"}</TableCell>
                         <TableCell className="text-muted-foreground tabular-nums">{ex.trabajador_documento || "—"}</TableCell>
-                        <TableCell className="text-sm">{ex.tipo_examen.replace(/_/g, " ")}</TableCell>
+                        <TableCell className="text-sm">{(ex.tipo_examen || "—").replace(/_/g, " ")}</TableCell>
                         <TableCell className="tabular-nums">{new Date(ex.fecha_examen).toLocaleDateString("es-CO")}</TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${conceptoColor[ex.concepto_aptitud] || ""}`}>
-                            {ex.concepto_aptitud.replace(/_/g, " ")}
+                            {(ex.concepto_aptitud || "pendiente").replace(/_/g, " ")}
                           </span>
                         </TableCell>
                         <TableCell>
