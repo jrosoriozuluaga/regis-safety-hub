@@ -138,11 +138,26 @@ export default function RiskMatrices() {
       toast.success("Matriz creada. Cargando riesgos típicos del CIIU...");
 
       if (empresa) {
-        const tipicos = await riesgosTipicosService.getByCiiu(empresa.ciiu_codigo);
+        // Combine primary + secondary CIIU risks
+        const tipicosPrimario = await riesgosTipicosService.getByCiiu(empresa.ciiu_codigo);
+        const tipicosSec = empresa.ciiu_codigo_secundario
+          ? await riesgosTipicosService.getByCiiu(empresa.ciiu_codigo_secundario)
+          : [];
+        // Deduplicate by descripcion_peligro
+        const seen = new Set<string>();
+        const tipicos = [...tipicosPrimario, ...tipicosSec].filter((t: any) => {
+          const key = t.descripcion_peligro;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
         if (tipicos.length > 0) {
+          const ciiuLabel = empresa.ciiu_codigo_secundario
+            ? `${empresa.ciiu_codigo} + ${empresa.ciiu_codigo_secundario}`
+            : empresa.ciiu_codigo;
           const riesgosToInsert = tipicos.map((t: any) => ({
             proceso: "Operación general",
-            actividad: "Actividades del CIIU " + empresa.ciiu_codigo,
+            actividad: "Actividades del CIIU " + ciiuLabel,
             categoria_peligro: t.categoria_peligro || "General",
             descripcion_peligro: t.descripcion_peligro,
             fuente_peligro: t.fuente_peligro || "Actividad laboral",
@@ -163,12 +178,12 @@ export default function RiskMatrices() {
           await logsService.log({
             tipo: "generar",
             modulo: "matrices",
-            descripcion: `Matriz de riesgo GTC 45 generada con ${tipicos.length} riesgos para ${empresa.razon_social} (CIIU ${empresa.ciiu_codigo})`,
+            descripcion: `Matriz de riesgo GTC 45 generada con ${tipicos.length} riesgos para ${empresa.razon_social} (CIIU ${ciiuLabel})`,
             empresa_id: selectedEmpresa || undefined,
             usuario_id: user?.id,
-            metadata: { matriz_id: newMatriz.id, ciiu: empresa.ciiu_codigo, num_riesgos: tipicos.length },
+            metadata: { matriz_id: newMatriz.id, ciiu: ciiuLabel, num_riesgos: tipicos.length },
           });
-          toast.success(`${tipicos.length} riesgos típicos insertados para CIIU ${empresa.ciiu_codigo}`);
+          toast.success(`${tipicos.length} riesgos típicos insertados para CIIU ${ciiuLabel}`);
         } else {
           toast.info(`No hay riesgos pre-cargados para CIIU ${empresa.ciiu_codigo}`);
         }

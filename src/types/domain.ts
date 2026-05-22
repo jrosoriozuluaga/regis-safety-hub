@@ -15,6 +15,7 @@ export type Empresa = {
   razon_social: string;
   nit: string;
   ciiu_codigo: string;
+  ciiu_codigo_secundario?: string;
   ciudad: string;
   departamento?: string;
   direccion: string;

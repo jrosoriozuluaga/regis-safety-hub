@@ -106,6 +106,7 @@ type EmpresaForm = {
   razon_social: string;
   nit: string;
   ciiu_codigo: string;
+  ciiu_codigo_secundario: string;
   ciudad: string;
   departamento: string;
   direccion: string;
@@ -122,6 +123,7 @@ const emptyForm: EmpresaForm = {
   razon_social: "",
   nit: "",
   ciiu_codigo: "",
+  ciiu_codigo_secundario: "",
   ciudad: "",
   departamento: "",
   direccion: "",
@@ -278,6 +280,7 @@ export default function Companies() {
       razon_social: empresa.razon_social || "",
       nit: empresa.nit || "",
       ciiu_codigo: empresa.ciiu_codigo || "",
+      ciiu_codigo_secundario: empresa.ciiu_codigo_secundario || "",
       ciudad: empresa.ciudad || "",
       departamento: empresa.departamento || "",
       direccion: empresa.direccion || "",
@@ -697,10 +700,14 @@ export default function Companies() {
                 <Input value={form.nit} onChange={(e) => updateField("nit", e.target.value)} placeholder="900123456-7" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Código CIIU</Label>
                 <Input value={form.ciiu_codigo} onChange={(e) => updateField("ciiu_codigo", e.target.value)} placeholder="5611" />
+              </div>
+              <div className="space-y-2">
+                <Label>CIIU secundario (opcional)</Label>
+                <Input value={form.ciiu_codigo_secundario} onChange={(e) => updateField("ciiu_codigo_secundario", e.target.value)} placeholder="4620" />
               </div>
               <div className="space-y-2">
                 <Label>Nivel de Riesgo ARL</Label>
