@@ -209,11 +209,14 @@ export default function Documents() {
 
     setUploading(true);
     try {
-      const { updated } = await documentsService.upload(uploadFile, uploadEmpresa, uploadTipo, user?.id);
+      const { updated, storagePath } = await documentsService.upload(uploadFile, uploadEmpresa, uploadTipo, user?.id);
       await fetchDocuments();
       setUploadOpen(false);
       resetUploadForm();
-      toast.success(updated ? "Documento actualizado (ya existía uno con el mismo nombre y tipo)" : "Documento cargado exitosamente");
+      toast.success(updated ? "Documento actualizado (ya existía uno con el mismo nombre y tipo)" : "Documento cargado exitosamente", {
+        description: `📁 documentos/${storagePath}`,
+        duration: 5000,
+      });
     } catch (err: any) {
       toast.error(err.message ?? "Error al cargar el documento");
     } finally {
