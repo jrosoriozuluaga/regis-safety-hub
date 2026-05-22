@@ -2,6 +2,7 @@ export type UserRole = "admin" | "consultor" | "cliente";
 
 export type UserProfile = {
   id: string;
+  nombre: string;
   nit: string;
   companyName: string;
   contactEmail: string;

@@ -67,7 +67,10 @@ export function AppHeader() {
   const highCount = alerts.filter((a) => a.severidad === "alta").length;
   const totalCount = alerts.length;
 
-  const initials = (user?.companyName ?? "RG")
+  const displayName = user?.nombre || user?.companyName || "Invitado";
+  const isStaff = user?.role === "admin" || user?.role === "consultor";
+  const roleLabel = user?.role === "admin" ? "Administrador" : user?.role === "consultor" ? "Consultor" : user?.companyName;
+  const initials = (displayName)
     .split(" ")
     .map((p) => p[0])
     .slice(0, 2)
@@ -187,9 +190,9 @@ export function AppHeader() {
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
             </Avatar>
             <div className="hidden md:flex flex-col items-start leading-tight">
-              <span className="text-sm font-medium">{user?.companyName ?? "Invitado"}</span>
+              <span className="text-sm font-medium">{displayName}</span>
               <span className="text-[11px] text-muted-foreground">
-                {user ? `NIT ${user.nit}` : "—"}
+                {isStaff ? roleLabel : user ? `NIT ${user.nit}` : "—"}
               </span>
             </div>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -198,13 +201,13 @@ export function AppHeader() {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel>
             <div className="flex flex-col">
-              <span>Mi cuenta</span>
+              <span>{displayName}</span>
               {user && <span className="text-[11px] font-normal text-muted-foreground">{user.contactEmail}</span>}
+              {user && <span className="text-[10px] font-normal text-muted-foreground capitalize">{user.role} {!isStaff && user.companyName ? `— ${user.companyName}` : ""}</span>}
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem><UserIcon className="mr-2 h-4 w-4" />Perfil</DropdownMenuItem>
-          <DropdownMenuItem><Settings className="mr-2 h-4 w-4" />Configuración</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate("/configuracion")}><Settings className="mr-2 h-4 w-4" />Configuración</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />Cerrar sesión

@@ -57,8 +57,9 @@ export async function login(nit: string, password: string): Promise<UserProfile>
   const empresa = (Array.isArray(empresaRaw) ? empresaRaw[0] : empresaRaw) as { nit: string; razon_social: string } | null;
   const userProfile: UserProfile = {
     id: profile.id,
+    nombre: profile.nombre,
     nit: empresa?.nit || nitValue,
-    companyName: empresa?.razon_social || profile.nombre,
+    companyName: empresa?.razon_social || "Regis Colombia",
     contactEmail: profile.email,
     role: profile.rol as UserProfile["role"],
     empresa_id: profile.empresa_id,
