@@ -36,6 +36,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UploadPila = lazy(() => import("./pages/UploadPila"));
 const Observability = lazy(() => import("./pages/Observability"));
+const Profile = lazy(() => import("./pages/Profile"));
 const AsistenciaComite = lazy(() => import("./pages/AsistenciaComite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -64,6 +65,7 @@ function AppInner() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/perfil" element={<Profile />} />
                 <Route path="/pila" element={<Pila />} />
                 <Route path="/medical-exams" element={<MedicalExams />} />
                 <Route path="/risk-matrices" element={<RiskMatrices />} />

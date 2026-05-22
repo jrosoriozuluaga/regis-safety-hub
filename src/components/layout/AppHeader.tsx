@@ -207,6 +207,7 @@ export function AppHeader() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => navigate("/perfil")}><UserIcon className="mr-2 h-4 w-4" />Mi Perfil</DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate("/configuracion")}><Settings className="mr-2 h-4 w-4" />Configuración</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
