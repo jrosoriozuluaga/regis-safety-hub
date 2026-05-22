@@ -19,6 +19,7 @@ import {
   Stethoscope,
   Users,
   Siren,
+  ShieldAlert,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,7 @@ type CalendarEvent = {
   id: string;
   date: string; // YYYY-MM-DD
   title: string;
-  modulo: "pila" | "examenes" | "comites" | "emergencias";
+  modulo: "pila" | "examenes" | "comites" | "emergencias" | "equipos";
   empresa: string;
   empresaId: string;
   estado?: string;
@@ -40,6 +41,7 @@ const MODULO_COLORS: Record<string, string> = {
   examenes: "bg-purple-100 text-purple-800 border-purple-200",
   comites: "bg-emerald-100 text-emerald-800 border-emerald-200",
   emergencias: "bg-orange-100 text-orange-800 border-orange-200",
+  equipos: "bg-red-100 text-red-800 border-red-200",
 };
 
 const MODULO_ICONS: Record<string, React.ElementType> = {
@@ -47,6 +49,7 @@ const MODULO_ICONS: Record<string, React.ElementType> = {
   examenes: Stethoscope,
   comites: Users,
   emergencias: Siren,
+  equipos: ShieldAlert,
 };
 
 const MODULO_LABELS: Record<string, string> = {
@@ -54,6 +57,7 @@ const MODULO_LABELS: Record<string, string> = {
   examenes: "Examen",
   comites: "Comité",
   emergencias: "Emergencia",
+  equipos: "Equipo",
 };
 
 const MONTHS_ES = [
@@ -167,6 +171,24 @@ export default function CalendarPage() {
           modulo: "emergencias",
           empresa: p.empresas_cliente?.razon_social ?? "",
           empresaId: p.empresa_id,
+        });
+      });
+
+      // Equipment expirations this month
+      const { data: equipos } = await supabase
+        .from("inventario_equipos")
+        .select("id, nombre, fecha_vencimiento, empresa_id, empresas_cliente(razon_social)")
+        .gte("fecha_vencimiento", startDate)
+        .lte("fecha_vencimiento", endDate);
+
+      (equipos ?? []).forEach((eq: any) => {
+        allEvents.push({
+          id: `equipo-${eq.id}`,
+          date: eq.fecha_vencimiento,
+          title: `Vence: ${eq.nombre ?? "Equipo"}`,
+          modulo: "equipos",
+          empresa: eq.empresas_cliente?.razon_social ?? "",
+          empresaId: eq.empresa_id,
         });
       });
 
