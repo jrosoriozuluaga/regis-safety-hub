@@ -194,6 +194,7 @@ export default function Committees() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
+        {(user?.role === "admin" || user?.role === "consultor") && (
         <Card className="shadow-card lg:col-span-2">
           <CardHeader><CardTitle className="text-base">Nueva acta</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -562,6 +563,7 @@ export default function Committees() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Attendance + quorum panel */}
         <Card className="shadow-card">
