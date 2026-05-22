@@ -75,18 +75,19 @@ export default function UploadPila() {
     const file = files[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = [".pdf", ".xlsx", ".xls", ".zip"];
+    // Validate file type — only PDF and images
+    const allowedMimes = ["application/pdf", "image/png", "image/jpeg"];
+    const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    if (!allowedTypes.includes(ext)) {
-      toast.error("Formato no permitido. Solo se aceptan archivos PDF, Excel o ZIP.");
+    if (!allowedExts.includes(ext) && !allowedMimes.includes(file.type)) {
+      toast.error("Solo se aceptan archivos PDF o imagen (PNG/JPG).");
       return;
     }
 
-    // Validate file size (max 25MB)
-    const maxSize = 25 * 1024 * 1024;
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error("El archivo excede el límite de 25 MB. Intente con un archivo más pequeño.");
+      toast.error("El archivo no puede superar 10 MB.");
       return;
     }
 
@@ -203,8 +204,8 @@ export default function UploadPila() {
 
               <FileDropzone
                 onFiles={handleFiles}
-                accept=".pdf,.xlsx,.xls,.zip"
-                hint="Arrastre su planilla PILA aqui o haga clic para seleccionar — PDF, Excel o ZIP"
+                accept=".pdf,.png,.jpg,.jpeg"
+                hint="Arrastre su planilla PILA aqui o haga clic para seleccionar — PDF o imagen (PNG/JPG)"
               />
 
               {state === "uploading" && (
