@@ -8,7 +8,7 @@
  * Format: DOC-[MODULE]-[NIT]-[SEQ]
  */
 export function generateDocCode(module: string, nit?: string): string {
-  const mod = module.toUpperCase().replace(/\s+/g, "-").slice(0, 8);
+  const mod = String(module || "DOC").toUpperCase().replace(/\s+/g, "-").slice(0, 8);
   const nitPart = nit ? nit.replace(/[^0-9]/g, "").slice(0, 9) : "000000000";
   const seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, "0");
   return `DOC-${mod}-${nitPart}-${seq}`;
@@ -50,9 +50,11 @@ export type ExportHeaderOptions = {
  * Designed to be injected into window.open() HTML exports.
  */
 export function getExportHeaderHTML(opts: ExportHeaderOptions): string {
-  const docCode = generateDocCode(opts.moduleCode, opts.empresaNit);
+  const docCode = generateDocCode(opts.moduleCode || "DOC", opts.empresaNit);
   const version = opts.version ?? "1.0";
   const dateStr = formatHeaderDate(opts.date);
+  const empresaNombre = opts.empresaNombre || "";
+  const empresaNit = opts.empresaNit || "";
 
   return `
     <div style="
@@ -69,7 +71,7 @@ export function getExportHeaderHTML(opts: ExportHeaderOptions): string {
       <div style="flex-shrink: 0; display: flex; align-items: center; gap: 12px;">
         <img id="regis-logo-header" src="" alt="Regis Colombia"
           style="height: 60px; width: auto; object-fit: contain;" />
-        ${opts.empresaLogoUrl ? `<img src="${opts.empresaLogoUrl}" alt="${opts.empresaNombre || 'Empresa'}" style="height: 50px; width: auto; object-fit: contain; border-left: 1px solid #e2e8f0; padding-left: 12px;" />` : ""}
+        ${opts.empresaLogoUrl ? `<img src="${opts.empresaLogoUrl}" alt="${empresaNombre || 'Empresa'}" style="height: 50px; width: auto; object-fit: contain; border-left: 1px solid #e2e8f0; padding-left: 12px;" />` : ""}
       </div>
 
       <!-- Company info -->
@@ -78,8 +80,8 @@ export function getExportHeaderHTML(opts: ExportHeaderOptions): string {
         <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
           Sistema de Gestión de Seguridad y Salud en el Trabajo
         </div>
-        ${opts.empresaNombre ? `<div style="font-size: 13px; font-weight: 600; color: #334155; margin-top: 6px;">${opts.empresaNombre}</div>` : ""}
-        ${opts.empresaNit ? `<div style="font-size: 11px; color: #64748b;">NIT: ${opts.empresaNit}</div>` : ""}
+        ${empresaNombre ? `<div style="font-size: 13px; font-weight: 600; color: #334155; margin-top: 6px;">${empresaNombre}</div>` : ""}
+        ${empresaNit ? `<div style="font-size: 11px; color: #64748b;">NIT: ${empresaNit}</div>` : ""}
       </div>
 
       <!-- Traceability -->
