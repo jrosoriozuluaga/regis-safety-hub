@@ -256,22 +256,25 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-6 justify-center" style={{ height: 240 }}>
-              {complianceData.map((d) => (
-                <div key={d.name} className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
-                  <span className="text-sm font-bold tabular-nums">{d.score}%</span>
-                  <div className="w-full bg-muted rounded-t-md" style={{ height: 200 }}>
-                    <div
-                      className="w-full rounded-t-md transition-all duration-700"
-                      style={{
-                        height: `${d.score}%`,
-                        marginTop: `${100 - d.score}%`,
-                        backgroundColor: d.score >= 80 ? "#16a34a" : d.score >= 60 ? "#ca8a04" : "#dc2626",
-                      }}
-                    />
+              {complianceData.map((d, i) => {
+                const barColors = ["#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4"];
+                const color = barColors[i % barColors.length];
+                return (
+                  <div key={d.name} className="flex flex-col items-center gap-2 flex-1 max-w-[140px]">
+                    <span className="text-sm font-bold tabular-nums">{d.score}%</span>
+                    <div className="w-full bg-muted rounded-t-md relative" style={{ height: 200 }}>
+                      <div
+                        className="w-full rounded-t-md transition-all duration-700 absolute bottom-0 left-0"
+                        style={{
+                          height: `${d.score}%`,
+                          backgroundColor: color,
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground text-center leading-tight">{d.name}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground text-center leading-tight">{d.name}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
