@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { Link } from "react-router-dom";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { TablePagination, usePagination } from "@/components/common/TablePagination";
@@ -534,7 +535,9 @@ export default function Workers() {
                     ) : (
                       pagedWorkers.map((w) => (
                         <TableRow key={w.id} className={!w.activo ? "opacity-50" : ""}>
-                          <TableCell className="font-medium">{w.nombre}</TableCell>
+                          <TableCell className="font-medium">
+                            <Link to={`/trabajadores/${w.id}`} className="text-primary hover:underline">{w.nombre}</Link>
+                          </TableCell>
                           <TableCell className="font-mono text-xs">{w.cedula}</TableCell>
                           <TableCell className="text-sm">{w.cargo || "—"}</TableCell>
                           <TableCell className="text-sm">{w.area || "—"}</TableCell>

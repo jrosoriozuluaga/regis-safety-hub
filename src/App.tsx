@@ -38,6 +38,7 @@ const UploadPila = lazy(() => import("./pages/UploadPila"));
 const Observability = lazy(() => import("./pages/Observability"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AsistenciaComite = lazy(() => import("./pages/AsistenciaComite"));
+const WorkerDetail = lazy(() => import("./pages/WorkerDetail"));
 const CompanyOnboardingWizard = lazy(() => import("./pages/wizards/CompanyOnboardingWizard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -75,6 +76,7 @@ function AppInner() {
                 <Route path="/compliance" element={<Compliance />} />
                 <Route path="/empresas" element={<Companies />} />
                 <Route path="/trabajadores" element={<Workers />} />
+                <Route path="/trabajadores/:id" element={<WorkerDetail />} />
                 <Route path="/calendario" element={<CalendarPage />} />
                 <Route path="/informe" element={<CompanyReport />} />
                 <Route path="/documentos" element={<Documents />} />
