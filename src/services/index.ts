@@ -244,7 +244,7 @@ export const pilaService = {
     if (existing) {
       const { data, error } = await supabase
         .from("pila_records")
-        .update({ estado: "cargada", fecha_carga: now, archivo_url: archivoUrl, intentos_notificacion: 0 })
+        .update({ estado: "cargada", fecha_carga: now, archivo_url: archivoUrl, intentos_solicitud: 0 })
         .eq("id", existing.id)
         .select()
         .single();
@@ -253,7 +253,7 @@ export const pilaService = {
     } else {
       const { data, error } = await supabase
         .from("pila_records")
-        .insert({ empresa_id: empresaId, periodo, estado: "cargada", fecha_carga: now, archivo_url: archivoUrl })
+        .insert({ empresa_id: empresaId, periodo, estado: "cargada", fecha_carga: now, archivo_url: archivoUrl, intentos_solicitud: 0 })
         .select()
         .single();
       if (error) throw error;
