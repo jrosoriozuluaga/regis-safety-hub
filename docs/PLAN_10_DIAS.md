@@ -9,6 +9,78 @@
 
 ## CHANGELOG
 
+### 22 de mayo — Cierre total + Video + Bugfixes
+
+#### Bugfix Batch 1 (8 fixes):
+- BUG-1: Header muestra nombre real del usuario
+- BUG-2: Signed URLs on-the-fly en PILA, Examenes, Documentos
+- BUG-3: UploadPila solo acepta PDF/imagen
+- BUG-5: Template update usa maybeSingle
+- BUG-6: WhatsApp FAB eliminado
+- BUG-7: Audio upload preserva .m4a
+- BUG-9: Formulario acta oculto para clientes
+- BUG-11: Toast muestra ruta Storage
+
+#### Bugfix Batch 2 (7 fixes + code review):
+- BUG-12: Dashboard barras alineadas + colores unicos por empresa
+- BUG-13: Cumplimiento imprimir funciona
+- BUG-14: exportHeader null-safe en todos los modulos
+- BUG-15+18: PILA sync mensaje contextual + scroll position
+- BUG-16: Copy "Grabacion de reunion"
+- BUG-17: Normatividad read-only
+- T-REVIEW: Null guards MedicalExams (0 console.logs, 0 strings ingles, 0 URLs hardcoded)
+
+#### Batch Nocturno (12 commits):
+- PILA carga manual: columna intentos_notificacion → intentos_solicitud
+- PILA sync: off-by-one month corregido
+- Audio Safari: fallback audio/mp4
+- UploadPila: validacion estricta MIME + extension
+- Drive auto-sync: webhook n8n fire-and-forget post upload
+- Pagina perfil con cambio de contrasena
+- Onboarding wizard conectado a rutas + boton en Empresas
+- Calendario con vencimientos de equipos
+- Carga masiva CSV de equipos con plantilla
+- Prompt emergencias mejorado: diamante UNGRD, PON, MEC
+- PILA mantiene scroll position
+- Tooltips en codigo y version documentos
+
+#### Batch Final (7/8 completados):
+- F1: CIIU secundario + matrices combinadas
+- F2: Vista detalle trabajador con examenes y documentos
+- F3: Links asistencia individuales con token unico
+- F5: Responsive layout en 5 paginas principales
+- F6: Tabla consultor-empresas con roles principal/apoyo
+- F7: Calendario completo: PILA + comites + examenes + equipos + leyenda
+- F8: Emails anti-spam con texto plano + List-Unsubscribe
+
+#### Migrations aplicadas:
+- 017: asistencia_comite tokens individuales + RLS anonimo
+- 018: consultor_empresas many-to-many + RLS
+
+#### Edge Functions re-deployadas:
+- generate-bitacora ✅
+- weekly-summary ✅
+- send-pila-reminder ✅
+
+#### Google Drive:
+- Integracion n8n → Google Drive funcionando
+- Webhook pila-to-drive activo
+- Carpetas por empresa creadas en Drive
+
+#### Video:
+- Video 1 grabado y subido (26:24, informal)
+- Video 2 grabado y subido (23:43, estructurado con senales para IA)
+- Entregado en plataforma Aztec
+
+#### Materiales creados:
+- 5 PDFs examenes medicos de prueba
+- Audio emergencias 3+ minutos
+- Slides HTML (8 slides)
+- Libreto teleprompter DOCX
+- OG image + favicon SVG
+
+---
+
 ### 2026-05-21 — Cierre definitivo: Demo Script v2 + documentacion final
 
 **Resumen:** Demo script reescrito con todas las funcionalidades nuevas.
@@ -159,6 +231,12 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 | 007 | `add_config_keys.sql` | email_remitente + equipos_dias_aviso |
 | 008 | `add_logo_empresas.sql` | Campo logo_url en empresas_cliente |
 | 009 | `pila_unique_constraint.sql` | UNIQUE(empresa_id, periodo) |
+| 010 | `sync_periods_cron_DRAFT.sql` | syncPeriods pg_cron (DRAFT) |
+| 011 | `api_cost_log_DRAFT.sql` | Tabla costos API |
+| 012 | `asistencia_digital_policies_DRAFT.sql` | RLS anon asistencia comite |
+| 013 | `matriz_arl_aprobacion_DRAFT.sql` | Columnas ARL en matrices_riesgo |
+| 017 | `asistencia_individual_tokens_DRAFT.sql` | Token + confirmado_at en asistencia_comite |
+| 018 | `consultor_empresas_DRAFT.sql` | Tabla consultor_empresas many-to-many + RLS |
 
 **Horas ahorradas vs plan original: ~50h** (Dias 2-7 completados en 1 dia real)
 
@@ -211,14 +289,13 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 | 5 | 24 mayo (sab) | Trazabilidad + config + role guards | ✅ COMPLETADO (Batch C) |
 | 6 | 25 mayo (dom) | C1 completo + P10 | ✅ COMPLETADO (Batch D) |
 | 7 | 26 mayo (lun) | Datos demo + limpieza | ✅ COMPLETADO (Batch D + E) |
-| 8 | 27 mayo (mar) | Ensayo + preparacion | ⬜ PENDIENTE |
-| 9 | 28 mayo (mie) | GRABAR VIDEO | ⬜ PENDIENTE |
-| 10 | 29 mayo (jue) | Buffer | — |
+| 8 | 22 mayo (jue) | Bugfixes + batch final + video | ✅ COMPLETADO |
+| 9 | 22 mayo (jue) | Video grabado + entregado | ✅ COMPLETADO |
+| 10 | — | Buffer (no necesario) | ✅ N/A |
 
 **Dias 1-7: COMPLETADOS en 2 dias reales (20 y 21 mayo)**
-**Dia 8: Ensayo (audio emergencias, Fireflies test, 5 PDFs examenes, dry-run 25 min)**
-**Dia 9: Grabar video final + subir a YouTube**
-**Dia 10: Buffer por si se necesita re-grabar**
+**Dias 8-9: COMPLETADOS el 22 mayo — bugfixes, batch final, video grabado y entregado**
+**Dia 10: Buffer no fue necesario**
 
 ### Usuarios demo configurados (4 usuarios)
 | Email | Rol | Empresa | Password |
@@ -230,34 +307,28 @@ Dias 2 a 7 del plan cubiertos en un solo dia real.
 
 ---
 
-## Estado: LISTO PARA GRABAR
+## Estado: PROYECTO COMPLETADO Y ENTREGADO
 
-Todo el desarrollo esta completo. Solo quedan tareas de preparacion y grabacion.
+Concurso entregado en plataforma Aztec el 22 de mayo de 2026.
+Desarrollo completado en 3 dias reales (20, 21 y 22 de mayo).
 
-### Pendientes tecnicos (opcionales)
-- [ ] Migration 010 (pg_cron) — verificar si free tier de Supabase soporta pg_cron
+### Todo completado
 - [x] Deploy Edge Functions (8/8 desplegadas)
 - [x] Crear usuario cliente Construandes para demo multi-tenant
 - [x] Resetear password admin@saborcriollo.com (Demo2026!)
-- [x] Migrations 011-013 aplicadas
-- [x] Demo script v2 reescrito con todas las funcionalidades
+- [x] Migrations 005-018 aplicadas
+- [x] Demo script v3 reescrito con todas las funcionalidades
+- [x] Grabar audio de 3+ minutos para plan de emergencias
+- [x] Preparar 5 PDFs examenes distintos para el video
+- [x] Grabar video 1 (26:24) + video 2 (23:43)
+- [x] Entregar en plataforma Aztec
+- [x] Bugfix batch 1 (8 fixes) + batch 2 (7 fixes)
+- [x] Batch nocturno (12 commits)
+- [x] Batch final (7/8 completados)
+- [x] Google Drive integration via n8n
 
-### Pendientes del video (unico trabajo restante)
-- [ ] Grabar audio de 3+ minutos para plan de emergencias
-- [ ] Grabar reunion test con Fireflies (importar transcripcion)
-- [ ] Preparar 5 PDFs examenes distintos para el video
-- [ ] Ensayo completo del demo (dry-run 25 min)
-- [ ] Grabar video final
-- [ ] Subir a YouTube + entregar en plataforma Aztec
-
-### Completados (bonus)
-- [x] Cron bitacora mensual + resumen semanal (Batch F)
-- [x] Vista observabilidad AdminDashboard (Batch F)
-- [x] Fireflies + Whisper transcripcion reuniones (Batch H)
-- [x] Escalacion PILA a RRHH (Batch H)
-- [x] Paginacion + skeletons + tooltips + empty states (Batch I)
-- [x] Toggle Admin/Cliente con selector empresa (post-Batch I)
-- [x] Demo script FINAL v2 (cierre)
+### Mejora futura (unico pendiente)
+- [ ] F4: DRY BulkImportDialog — extraer componente compartido de Companies, Workers, Equipment
 
 ---
 
