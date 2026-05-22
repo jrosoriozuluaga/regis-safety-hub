@@ -94,8 +94,8 @@ export function getExportHeaderHTML(opts: ExportHeaderOptions): string {
         color: #64748b;
         line-height: 1.6;
       ">
-        <div><strong>Código:</strong> ${docCode}</div>
-        <div><strong>Versión:</strong> ${version}</div>
+        <div title="Código auto-generado: DOC-[Módulo]-[NIT]-[Consecutivo]"><strong>Código:</strong> ${docCode}</div>
+        <div title="Versión del documento"><strong>Versión:</strong> ${version}</div>
         <div><strong>Fecha:</strong> ${dateStr}</div>
       </div>
     </div>
