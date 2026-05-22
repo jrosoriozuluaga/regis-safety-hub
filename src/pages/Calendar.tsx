@@ -418,6 +418,15 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Color legend */}
+      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-500" />PILA</span>
+        <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-purple-500" />Exámenes médicos</span>
+        <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-emerald-500" />Comités</span>
+        <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-500" />Emergencias</span>
+        <span className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-500" />Equipos</span>
+      </div>
     </div>
   );
 }
