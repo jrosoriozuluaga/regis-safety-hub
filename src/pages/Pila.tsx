@@ -110,7 +110,13 @@ export default function Pila() {
         user?.id,
       );
       await loadRecords();
-      toast.success(`Sincronizacion completada: ${created} periodos creados, ${overdue} marcados como vencidos`);
+      if (created === 0 && overdue === 0) {
+        toast.info("Todos los periodos ya estan sincronizados. No hay cambios.");
+      } else if (created === 0) {
+        toast.success(`Periodos al dia. ${overdue} marcado(s) como vencido(s) por falta de archivo.`);
+      } else {
+        toast.success(`${created} periodo(s) nuevo(s) creado(s), ${overdue} marcado(s) como vencido(s).`);
+      }
     } catch (err: any) {
       toast.error(err.message || "Error al sincronizar");
     } finally {
@@ -458,8 +464,8 @@ export default function Pila() {
                                 onClick={async () => {
                                   try {
                                     await pilaService.validateRecord(r.id, user?.id, r.empresa_id, r.periodo);
-                                    toast.success("Planilla validada por el analista");
-                                    loadRecords();
+                                    toast.success(`Planilla ${r.periodo} validada por el analista`);
+                                    await loadRecords();
                                   } catch { toast.error("Error al validar planilla"); }
                                 }}
                                 title="Marcar como validada por el analista"
@@ -476,8 +482,8 @@ export default function Pila() {
                                 onClick={async () => {
                                   try {
                                     await pilaService.approveRecord(r.id, user?.id, r.empresa_id, r.periodo);
-                                    toast.success("Planilla aprobada — puntos de cumplimiento otorgados");
-                                    loadRecords();
+                                    toast.success(`Planilla ${r.periodo} aprobada — puntos de cumplimiento otorgados`);
+                                    await loadRecords();
                                   } catch { toast.error("Error al aprobar planilla"); }
                                 }}
                                 title="Aprobar y otorgar puntos de cumplimiento"
