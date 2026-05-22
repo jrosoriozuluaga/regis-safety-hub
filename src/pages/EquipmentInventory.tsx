@@ -14,8 +14,14 @@ import {
   Loader2,
   ShieldAlert,
   CalendarClock,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import Papa from "papaparse";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import type { Empresa } from "@/types/domain";
@@ -188,6 +194,12 @@ export default function EquipmentInventory() {
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<Equipo | null>(null);
+
+  // Bulk upload
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState<Array<Record<string, string>>>([]);
+  const [bulkErrors, setBulkErrors] = useState<string[]>([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
 
   // ── Load data ──
 
@@ -398,6 +410,72 @@ export default function EquipmentInventory() {
     }
   }
 
+  // ── Bulk upload ──
+
+  const CSV_HEADERS = ["tipo", "nombre", "ubicacion", "marca", "serial", "fecha_adquisicion", "fecha_vencimiento", "estado", "notas"];
+  const VALID_TIPOS = Object.keys(TIPO_CONFIG);
+  const VALID_ESTADOS = Object.keys(ESTADO_CONFIG);
+
+  function downloadTemplate() {
+    const csv = CSV_HEADERS.join(",") + "\nextintor,Extintor ABC 10lb,Piso 1,Kidde,SN-001,2025-01-15,2026-01-15,vigente,Pasillo principal\n";
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "plantilla_equipos.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleBulkFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        const rows = result.data as Record<string, string>[];
+        const errors: string[] = [];
+        rows.forEach((row, i) => {
+          if (!row.nombre?.trim()) errors.push(`Fila ${i + 1}: nombre vacio`);
+          if (row.tipo && !VALID_TIPOS.includes(row.tipo.trim().toLowerCase())) errors.push(`Fila ${i + 1}: tipo invalido "${row.tipo}"`);
+          if (row.estado && !VALID_ESTADOS.includes(row.estado.trim().toLowerCase())) errors.push(`Fila ${i + 1}: estado invalido "${row.estado}"`);
+        });
+        setBulkRows(rows);
+        setBulkErrors(errors);
+      },
+    });
+  }
+
+  async function handleBulkImport() {
+    const empresaId = filterEmpresa !== "all" ? filterEmpresa : user?.empresa_id;
+    if (!empresaId) { toast.error("Selecciona una empresa primero"); return; }
+    setBulkImporting(true);
+    try {
+      const inserts = bulkRows.filter(r => r.nombre?.trim()).map(r => ({
+        empresa_id: empresaId,
+        tipo: (r.tipo?.trim().toLowerCase() || "otro") as TipoEquipo,
+        nombre: r.nombre.trim(),
+        ubicacion: r.ubicacion?.trim() || null,
+        marca: r.marca?.trim() || null,
+        serial: r.serial?.trim() || null,
+        fecha_adquisicion: r.fecha_adquisicion?.trim() || null,
+        fecha_vencimiento: r.fecha_vencimiento?.trim() || null,
+        estado: (r.estado?.trim().toLowerCase() || "vigente") as EstadoEquipo,
+        notas: r.notas?.trim() || null,
+      }));
+      const { error } = await supabase.from("inventario_equipos").insert(inserts);
+      if (error) throw error;
+      toast.success(`${inserts.length} equipos importados exitosamente`);
+      await logsService.log({ tipo: "importar", modulo: "inventario_equipos", descripcion: `Carga masiva: ${inserts.length} equipos`, empresa_id: empresaId, usuario_id: user?.id });
+      setBulkOpen(false);
+      setBulkRows([]);
+      setBulkErrors([]);
+      loadEquipos();
+    } catch (err: any) {
+      toast.error(err.message || "Error al importar equipos");
+    } finally {
+      setBulkImporting(false);
+    }
+  }
+
   // ── Render helpers ──
 
   function TipoBadge({ tipo }: { tipo: TipoEquipo }) {
@@ -429,9 +507,14 @@ export default function EquipmentInventory() {
         title="Inventario de Equipos de Seguridad"
         description="Gestiona extintores, botiquines, camillas, EPP y otros equipos de seguridad."
         actions={
-          <Button onClick={openAdd} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Agregar equipo
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkOpen(true)} className="gap-1.5">
+              <Upload className="h-4 w-4" /> Carga Masiva
+            </Button>
+            <Button onClick={openAdd} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Agregar equipo
+            </Button>
+          </div>
         }
       />
 
@@ -796,6 +879,53 @@ export default function EquipmentInventory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={bulkOpen} onOpenChange={(o) => { setBulkOpen(o); if (!o) { setBulkRows([]); setBulkErrors([]); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Carga Masiva de Equipos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
+                <Download className="h-4 w-4" /> Descargar plantilla CSV
+              </Button>
+            </div>
+            <div>
+              <Label>Archivo CSV</Label>
+              <Input type="file" accept=".csv" onChange={handleBulkFile} className="mt-1" />
+            </div>
+            {bulkRows.length > 0 && (
+              <div className="text-sm space-y-2">
+                <p className="font-medium">{bulkRows.length} fila(s) encontradas</p>
+                {bulkErrors.length > 0 && (
+                  <div className="rounded border border-red-200 bg-red-50 p-2 space-y-1">
+                    {bulkErrors.slice(0, 5).map((e, i) => (
+                      <p key={i} className="text-xs text-red-700 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{e}</p>
+                    ))}
+                    {bulkErrors.length > 5 && <p className="text-xs text-red-600">...y {bulkErrors.length - 5} errores mas</p>}
+                  </div>
+                )}
+                {bulkErrors.length === 0 && (
+                  <p className="text-xs text-green-700 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Validacion exitosa</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleBulkImport}
+              disabled={bulkRows.length === 0 || bulkErrors.length > 0 || bulkImporting}
+              className="gap-1.5"
+            >
+              {bulkImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              Importar {bulkRows.length} equipos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
