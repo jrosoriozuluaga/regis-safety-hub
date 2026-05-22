@@ -269,6 +269,9 @@ export const pilaService = {
       metadata: { periodo, filename: file.name, archivo_url: archivoUrl },
     });
 
+    // Fire-and-forget: notify n8n to sync file to Drive/OneDrive
+    pilaService.notifyDriveSync(empresaId, periodo, filePath, archivoUrl).catch(() => {});
+
     return record;
   },
 
@@ -430,6 +433,18 @@ export const pilaService = {
       empresa_id: empresaId,
       usuario_id: userId,
       metadata: { pila_record_id: recordId, periodo },
+    });
+  },
+
+  /** Fire-and-forget: notify n8n to sync uploaded PILA file to Drive/OneDrive */
+  notifyDriveSync: async (empresaId: string, periodo: string, filePath: string, archivoUrl?: string) => {
+    const config = await pilaService.loadConfig();
+    const webhookBase = config.n8n_webhook_base_url;
+    if (!webhookBase) return;
+    await fetch(`${webhookBase}/pila-drive-sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ empresa_id: empresaId, periodo, file_path: filePath, archivo_url: archivoUrl }),
     });
   },
 };
