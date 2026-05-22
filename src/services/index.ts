@@ -629,7 +629,7 @@ export const documentsService = {
     }));
   },
 
-  upload: async (file: File, empresaId: string, tipo: string, userId?: string): Promise<{ updated: boolean }> => {
+  upload: async (file: File, empresaId: string, tipo: string, userId?: string): Promise<{ updated: boolean; storagePath: string }> => {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const storagePath = `${empresaId}/${tipo.replace(/\s+/g, "_")}_${Date.now()}_${safeName}`;
 
@@ -680,7 +680,7 @@ export const documentsService = {
       usuario_id: userId,
       metadata: { tipo, filename: file.name, updated: isUpdate },
     });
-    return { updated: isUpdate };
+    return { updated: isUpdate, storagePath };
   },
 
   validate: async (docId: string, userId?: string, empresaId?: string, filename?: string, tipo?: string): Promise<void> => {
@@ -1182,8 +1182,9 @@ export const templatesService = {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("No se pudo actualizar la plantilla. Verifica permisos.");
     return data;
   },
 
