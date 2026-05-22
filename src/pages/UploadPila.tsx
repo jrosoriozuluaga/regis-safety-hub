@@ -79,7 +79,7 @@ export default function UploadPila() {
     const allowedMimes = ["application/pdf", "image/png", "image/jpeg"];
     const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    if (!allowedExts.includes(ext) && !allowedMimes.includes(file.type)) {
+    if (!allowedExts.includes(ext) || !allowedMimes.includes(file.type)) {
       toast.error("Solo se aceptan archivos PDF o imagen (PNG/JPG).");
       return;
     }
