@@ -233,7 +233,7 @@ export default function Compliance() {
     if (!empresaInfo) return;
     const w = window.open("", "_blank");
     if (!w) { toast.error("No se pudo abrir la ventana de impresión"); return; }
-    const headerHTML = getExportHeaderHTML({ logoSrc: logo, module: "EVAL-0312", nit: empresaInfo.nit, empresaNombre: empresaInfo.razon_social });
+    const headerHTML = getExportHeaderHTML({ title: "Evaluación Estándares Mínimos 0312", moduleCode: "EVAL-0312", empresaNit: empresaInfo.nit, empresaNombre: empresaInfo.razon_social });
     const footerHTML = getExportFooterHTML();
 
     const scoreRows = [
@@ -253,7 +253,7 @@ export default function Compliance() {
       </tr>`
     ).join("");
 
-    w.document.write(`<html><head><title>Evaluación 0312 — ${empresaInfo.razon_social}</title>${getExportStyles()}</head><body>
+    w.document.write(`<html><head><title>Evaluación 0312 — ${empresaInfo.razon_social}</title><style>${getExportStyles()}</style></head><body>
       ${headerHTML}
       <h2 style="text-align:center;margin:16px 0">Evaluación de Estándares Mínimos — Resolución 0312 de 2019</h2>
       <p style="text-align:center;font-size:12px;color:#666">Capítulo ${empresaInfo.capitulo_0312} · ${filteredEstandares.length} estándares · ${checkedCount} cumplidos</p>
