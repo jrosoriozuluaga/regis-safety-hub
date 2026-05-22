@@ -138,6 +138,10 @@ Deno.serve(async (req) => {
               to: [empresa.contacto_pila_email],
               subject: `Bitácora SG-SST — ${empresa.razon_social} — ${mes}`,
               html: `<h2>Bitácora mensual SG-SST</h2><p><strong>${empresa.razon_social}</strong> — Periodo: ${mes}</p><div style="white-space:pre-wrap">${resumen}</div><hr><p style="font-size:11px;color:#888">Generado automáticamente por Regis Colombia SG-SST</p>`,
+              text: `Bitácora mensual SG-SST\n${empresa.razon_social} — Periodo: ${mes}\n\n${resumen}\n\nGenerado automáticamente por Regis Colombia SG-SST`,
+              headers: {
+                "List-Unsubscribe": "<mailto:sgsst@regiscolombia.com?subject=unsubscribe>",
+              },
             }),
           });
         } catch (e) {

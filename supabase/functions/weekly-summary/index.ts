@@ -130,6 +130,10 @@ Deno.serve(async (req) => {
               to: [emailDestino],
               subject: `Resumen semanal SG-SST — ${hoy}`,
               html: resumen.replace(/\n/g, "<br>").replace(/^# (.+)/gm, "<h2>$1</h2>").replace(/^## (.+)/gm, "<h3>$1</h3>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"),
+              text: resumen,
+              headers: {
+                "List-Unsubscribe": "<mailto:sgsst@regiscolombia.com?subject=unsubscribe>",
+              },
             }),
           });
         } catch (e) {
