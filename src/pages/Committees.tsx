@@ -40,6 +40,7 @@ export default function Committees() {
   const [horaFin, setHoraFin] = useState(() => new Date(Date.now() + 3600000).toTimeString().slice(0, 5));
 
   const [asistenciaLink, setAsistenciaLink] = useState("");
+  const [individualLinks, setIndividualLinks] = useState<Array<{ nombre: string; url: string }>>([]);
 
   // Meeting transcription state (T69)
   const [firefliesMeetings, setFirefliesMeetings] = useState<any[]>([]);
@@ -507,29 +508,37 @@ export default function Committees() {
                       const lastActa = actas[0];
                       if (!lastActa) return;
                       const empresa = empresas.find(e => e.id === selectedEmpresa);
-                      const token = generateAsistenciaToken(
-                        selectedComite,
-                        lastActa.id,
-                        lastActa.fecha_reunion,
-                        empresa?.razon_social || "Empresa",
-                        tipoComite,
-                        lugar,
-                        horaInicio
+                      // Generate individual links per member
+                      const links = members.map(m => {
+                        const token = generateAsistenciaToken(
+                          selectedComite, lastActa.id, lastActa.fecha_reunion,
+                          empresa?.razon_social || "Empresa", tipoComite, lugar, horaInicio,
+                          7, m.nombre, m.id
+                        );
+                        return { nombre: m.nombre, url: `${window.location.origin}/asistencia-comite?t=${token}` };
+                      });
+                      setIndividualLinks(links);
+                      // Also generate a general link (backward compat)
+                      const generalToken = generateAsistenciaToken(
+                        selectedComite, lastActa.id, lastActa.fecha_reunion,
+                        empresa?.razon_social || "Empresa", tipoComite, lugar, horaInicio
                       );
-                      const url = `${window.location.origin}/asistencia-comite?t=${token}`;
-                      setAsistenciaLink(url);
-                      navigator.clipboard.writeText(url).then(() => {
-                        toast.success("Link de asistencia copiado al portapapeles");
+                      const generalUrl = `${window.location.origin}/asistencia-comite?t=${generalToken}`;
+                      setAsistenciaLink(generalUrl);
+                      // Copy all individual links
+                      const allText = links.map(l => `${l.nombre}: ${l.url}`).join("\n");
+                      navigator.clipboard.writeText(allText).then(() => {
+                        toast.success(`${links.length} links individuales copiados al portapapeles`);
                       }).catch(() => {
-                        toast.info("Link generado — copialo manualmente");
+                        toast.info("Links generados — copialos manualmente");
                       });
                       logsService.log({
                         tipo: "generar",
                         modulo: "comites",
-                        descripcion: `Link asistencia digital generado para acta #${lastActa.numero_acta}`,
+                        descripcion: `Links asistencia individuales generados para acta #${lastActa.numero_acta} (${links.length} integrantes)`,
                         empresa_id: selectedEmpresa || undefined,
                         usuario_id: user?.id,
-                        metadata: { acta_id: lastActa.id, numero_acta: lastActa.numero_acta, tipo_comite: tipoComite },
+                        metadata: { acta_id: lastActa.id, numero_acta: lastActa.numero_acta, tipo_comite: tipoComite, num_links: links.length },
                       });
                     }}
                   >
@@ -537,7 +546,32 @@ export default function Committees() {
                     Generar link para ultima acta
                   </Button>
                 </div>
-                {asistenciaLink && (
+                {individualLinks.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-blue-800">Links individuales por integrante:</p>
+                    {individualLinks.map((l, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-blue-700 w-28 truncate">{l.nombre}</span>
+                        <input type="text" readOnly value={l.url}
+                          className="flex-1 text-[10px] bg-white border rounded px-1.5 py-1 text-slate-500 select-all"
+                          onClick={(e) => (e.target as HTMLInputElement).select()} />
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0"
+                          onClick={() => { navigator.clipboard.writeText(l.url); toast.success(`Link de ${l.nombre} copiado`); }}>
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 text-blue-600"
+                      onClick={() => {
+                        const allText = individualLinks.map(l => `${l.nombre}: ${l.url}`).join("\n");
+                        navigator.clipboard.writeText(allText);
+                        toast.success("Todos los links copiados");
+                      }}>
+                      <Copy className="h-3 w-3" /> Copiar todos
+                    </Button>
+                  </div>
+                )}
+                {asistenciaLink && individualLinks.length === 0 && (
                   <div className="flex items-center gap-2">
                     <input
                       type="text"

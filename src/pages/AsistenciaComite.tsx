@@ -17,6 +17,8 @@ type TokenData = {
   lugar?: string;
   hora_inicio?: string;
   expired: boolean;
+  integrante_nombre?: string;
+  integrante_id?: string;
 };
 
 type PageState = "loading" | "ready" | "invalid" | "expired" | "confirmed";
@@ -45,6 +47,8 @@ function decodeToken(token: string): TokenData | null {
       lugar: data.l,
       hora_inicio: data.h,
       expired,
+      integrante_nombre: data.in,
+      integrante_id: data.ii,
     };
   } catch {
     return null;
@@ -59,7 +63,9 @@ export function generateAsistenciaToken(
   tipoComite: string,
   lugar?: string,
   horaInicio?: string,
-  expiryDays = 7
+  expiryDays = 7,
+  integranteNombre?: string,
+  integranteId?: string,
 ): string {
   const exp = Date.now() + expiryDays * 24 * 60 * 60 * 1000;
   return btoa(
@@ -72,6 +78,8 @@ export function generateAsistenciaToken(
       l: lugar,
       h: horaInicio,
       exp,
+      in: integranteNombre,
+      ii: integranteId,
     })
   );
 }
@@ -186,6 +194,10 @@ export default function AsistenciaComite() {
   };
 
   const confirmedCount = Object.values(confirmados).filter(Boolean).length;
+  const isIndividualLink = !!(tokenData?.integrante_id);
+  const targetIntegrante = isIndividualLink
+    ? integrantes.find((m) => m.id === tokenData?.integrante_id)
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
@@ -240,6 +252,23 @@ export default function AsistenciaComite() {
           </Card>
         )}
 
+        {/* Confirmed state — individual link already confirmed */}
+        {state === "confirmed" && tokenData && (
+          <Card className="shadow-lg border-green-200">
+            <CardContent className="p-8 text-center">
+              <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-green-700 mb-2">
+                Asistencia confirmada
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {tokenData.integrante_nombre}, su asistencia al comite{" "}
+                <strong>{tipoLabel[tokenData.tipo_comite] || tokenData.tipo_comite}</strong>{" "}
+                ha sido registrada exitosamente.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Main attendance form */}
         {state === "ready" && tokenData && (
           <>
@@ -247,8 +276,13 @@ export default function AsistenciaComite() {
               <CardHeader className="text-center pb-2">
                 <CardTitle className="text-lg flex items-center justify-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  Asistencia de Comite
+                  {isIndividualLink ? "Confirmar asistencia" : "Asistencia de Comite"}
                 </CardTitle>
+                {isIndividualLink && tokenData.integrante_nombre && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Hola, <strong>{tokenData.integrante_nombre}</strong>
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-lg bg-primary/5 border border-primary/10 p-4 space-y-2">
@@ -275,60 +309,100 @@ export default function AsistenciaComite() {
                   )}
                 </div>
 
-                {confirmedCount > 0 && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="secondary" className="gap-1">
-                      <UserCheck className="h-3 w-3" />
-                      {confirmedCount} de {integrantes.length} confirmados
-                    </Badge>
+                {/* Individual link — single confirm button */}
+                {isIndividualLink && tokenData.integrante_id && (
+                  <div className="space-y-3">
+                    {confirmados[tokenData.integrante_id] ? (
+                      <div className="text-center py-4">
+                        <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-green-700">
+                          Su asistencia ya fue confirmada
+                        </p>
+                      </div>
+                    ) : (
+                      <Button
+                        className="w-full gap-2 h-12 text-base"
+                        disabled={confirming === tokenData.integrante_id}
+                        onClick={async () => {
+                          await handleConfirm(tokenData.integrante_id!);
+                          setState("confirmed");
+                        }}
+                      >
+                        {confirming === tokenData.integrante_id ? (
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-5 w-5" />
+                        )}
+                        Confirmar mi asistencia
+                      </Button>
+                    )}
+                    {targetIntegrante && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        {targetIntegrante.cargo_empresa} — {targetIntegrante.rol_comite}
+                        {targetIntegrante.es_principal ? " (Principal)" : " (Suplente)"}
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* Members list */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-slate-600">
-                    Integrantes del comite
-                  </p>
-                  {integrantes.length > 0 ? (
-                    integrantes.map((m) => (
-                      <div
-                        key={m.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium">{m.nombre}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {m.cargo_empresa} — {m.rol_comite}
-                            {m.es_principal ? " (Principal)" : " (Suplente)"}
-                          </div>
-                        </div>
-                        {confirmados[m.id] ? (
-                          <Badge className="gap-1 bg-green-600 shrink-0">
-                            <CheckCircle2 className="h-3 w-3" /> Confirmado
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="shrink-0 gap-1"
-                            disabled={confirming === m.id}
-                            onClick={() => handleConfirm(m.id)}
-                          >
-                            {confirming === m.id ? (
-                              <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="h-3 w-3" />
-                            )}
-                            Confirmar
-                          </Button>
-                        )}
+                {/* General link — full members list */}
+                {!isIndividualLink && (
+                  <>
+                    {confirmedCount > 0 && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Badge variant="secondary" className="gap-1">
+                          <UserCheck className="h-3 w-3" />
+                          {confirmedCount} de {integrantes.length} confirmados
+                        </Badge>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No hay integrantes registrados para este comite.
-                    </p>
-                  )}
-                </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-600">
+                        Integrantes del comite
+                      </p>
+                      {integrantes.length > 0 ? (
+                        integrantes.map((m) => (
+                          <div
+                            key={m.id}
+                            className="flex items-center justify-between rounded-lg border p-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium">{m.nombre}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {m.cargo_empresa} — {m.rol_comite}
+                                {m.es_principal ? " (Principal)" : " (Suplente)"}
+                              </div>
+                            </div>
+                            {confirmados[m.id] ? (
+                              <Badge className="gap-1 bg-green-600 shrink-0">
+                                <CheckCircle2 className="h-3 w-3" /> Confirmado
+                              </Badge>
+                            ) : (
+                              <Button
+                                size="sm"
+                                className="shrink-0 gap-1"
+                                disabled={confirming === m.id}
+                                onClick={() => handleConfirm(m.id)}
+                              >
+                                {confirming === m.id ? (
+                                  <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3 w-3" />
+                                )}
+                                Confirmar
+                              </Button>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No hay integrantes registrados para este comite.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {/* Privacy notice */}
                 <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
