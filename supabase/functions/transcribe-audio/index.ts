@@ -99,7 +99,65 @@ Deno.serve(async (req) => {
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
     if (anthropicKey && transcripcion.length > 50) {
-      const analysisPrompt = `Eres un especialista en SG-SST en Colombia. Basado en esta transcripción de audio, genera un análisis de vulnerabilidad JSON.\n\nEMPRESA: ${empresaInfo || "No disponible"}\n\nTRANSCRIPCIÓN:\n${transcripcion}\n\nGenera JSON con: resumen_ejecutivo, amenazas_identificadas[{tipo,amenaza,probabilidad,descripcion}], analisis_vulnerabilidad{personas{nivel,hallazgos[]},recursos{nivel,hallazgos[]},procesos{nivel,hallazgos[]}}, nivel_riesgo_global, recomendaciones[{prioridad,accion,responsable_sugerido,plazo_sugerido}], recursos_emergencia{extintores,botiquines,rutas_evacuacion,punto_encuentro,brigada}. Solo JSON válido.`;
+      const analysisPrompt = `Eres un experto en SG-SST Colombia con dominio de la Guía para Elaborar Planes de Emergencia (UNGRD) y la Resolución 0312/2019.
+
+EMPRESA: ${empresaInfo || "No disponible"}
+
+TRANSCRIPCIÓN DE INSPECCIÓN:
+${transcripcion}
+
+Genera un JSON completo con EXACTAMENTE esta estructura — solo JSON válido, sin texto adicional:
+
+{
+  "resumen_ejecutivo": "string",
+  "amenazas_identificadas": [
+    {
+      "tipo": "natural|tecnologica|social",
+      "amenaza": "string",
+      "descripcion": "string",
+      "diamante_riesgo": {
+        "amenaza": "verde|amarillo|naranja|rojo",
+        "personas": "verde|amarillo|naranja|rojo",
+        "recursos": "verde|amarillo|naranja|rojo",
+        "sistemas_procesos": "verde|amarillo|naranja|rojo",
+        "nivel_riesgo": "bajo|medio|alto|muy_alto",
+        "justificacion": "string"
+      }
+    }
+  ],
+  "analisis_vulnerabilidad": {
+    "personas": { "nivel": "verde|amarillo|naranja|rojo", "hallazgos": ["string"] },
+    "recursos": { "nivel": "verde|amarillo|naranja|rojo", "hallazgos": ["string"] },
+    "sistemas_procesos": { "nivel": "verde|amarillo|naranja|rojo", "hallazgos": ["string"] }
+  },
+  "nivel_riesgo_global": "bajo|medio|alto|muy_alto",
+  "estructura_organizacional_emergencias": {
+    "jefe_emergencias": { "cargo": "string", "responsabilidades": ["string"] },
+    "jefe_brigada": { "cargo": "string", "responsabilidades": ["string"] },
+    "grupo_primeros_auxilios": { "num_integrantes_sugerido": 1, "funciones": ["string"] },
+    "grupo_contra_incendios": { "num_integrantes_sugerido": 1, "funciones": ["string"] },
+    "grupo_evacuacion": { "num_integrantes_sugerido": 1, "funciones": ["string"] }
+  },
+  "niveles_alerta": {
+    "verde": "situacion normal",
+    "amarillo": "alerta temprana",
+    "naranja": "emergencia parcial",
+    "rojo": "emergencia total/evacuacion"
+  },
+  "pons": [
+    { "amenaza": "string", "nombre_pon": "string", "pasos": ["string"], "responsable": "string", "recursos_necesarios": ["string"] }
+  ],
+  "mec": {
+    "activacion": "string",
+    "comandante_incidente": "string",
+    "cadena_notificacion": ["string"],
+    "coordinacion_externa": ["ARL", "Bomberos", "Cruz Roja", "Policía"]
+  },
+  "recursos_emergencia": { "extintores": "string", "botiquines": "string", "rutas_evacuacion": "string", "punto_encuentro": "string", "brigada": "string" },
+  "recomendaciones": [
+    { "prioridad": "alta|media|baja", "accion": "string", "responsable_sugerido": "string", "plazo_sugerido": "string" }
+  ]
+}`;
 
       // P3: Try cheap model first, escalate if needed
       const CHEAP_MODEL = "claude-haiku-4-5-20251001";
@@ -114,7 +172,7 @@ Deno.serve(async (req) => {
               "x-api-key": anthropicKey!,
               "anthropic-version": "2023-06-01",
             },
-            body: JSON.stringify({ model, max_tokens: 4096, messages: [{ role: "user", content: analysisPrompt }] }),
+            body: JSON.stringify({ model, max_tokens: 8192, messages: [{ role: "user", content: analysisPrompt }] }),
           });
           if (res.ok) {
             const data = await res.json();
