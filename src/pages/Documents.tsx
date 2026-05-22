@@ -58,6 +58,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { TablePagination, usePagination } from "@/components/common/TablePagination";
 import { TableSkeleton } from "@/components/common/Skeletons";
 import { EmptyState } from "@/components/common/EmptyState";
+import { openStorageFile } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -547,10 +548,8 @@ export default function Documents() {
                           )}
                           {doc.archivo_url && (
                             <Tooltip><TooltipTrigger asChild>
-                              <Button variant="ghost" size="icon" asChild>
-                                <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="icon" onClick={() => openStorageFile(doc.archivo_url!)}>
                                   <Eye className="h-4 w-4" />
-                                </a>
                               </Button>
                             </TooltipTrigger><TooltipContent>Ver / Descargar</TooltipContent></Tooltip>
                           )}

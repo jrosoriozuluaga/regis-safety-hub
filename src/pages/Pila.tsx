@@ -19,6 +19,7 @@ import { empresasService, pilaService, logsService } from "@/services";
 import type { PilaConfig } from "@/services";
 import type { Empresa, PilaRecord } from "@/types/domain";
 import { generateUploadToken } from "./UploadPila";
+import { openStorageFile } from "@/lib/utils";
 
 const statusIcon: Record<string, typeof CheckCircle2> = {
   pendiente: Clock,
@@ -409,9 +410,9 @@ export default function Pila() {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {r.archivo_url ? (
-                            <a href={r.archivo_url} target="_blank" rel="noopener noreferrer" className="text-primary text-xs hover:underline">
+                            <button onClick={() => openStorageFile(r.archivo_url!)} className="text-primary text-xs hover:underline cursor-pointer">
                               Ver archivo
-                            </a>
+                            </button>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}

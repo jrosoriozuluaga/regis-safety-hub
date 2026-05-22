@@ -13,6 +13,7 @@ import { FileDropzone } from "@/components/common/FileDropzone";
 import { useAuth } from "@/context/AuthContext";
 import { empresasService, examenesService, logsService } from "@/services";
 import { supabase } from "@/lib/supabase";
+import { openStorageFile } from "@/lib/utils";
 import type { Empresa, ExamenMedico } from "@/types/domain";
 
 const conceptoColor: Record<string, string> = {
@@ -310,7 +311,7 @@ export default function MedicalExams() {
                               variant="ghost"
                               size="sm"
                               className="h-7 px-2 text-xs gap-1"
-                              onClick={async () => { const { data } = await supabase.storage.from("documentos").createSignedUrl(ex.archivo_url!, 3600); if (data?.signedUrl) window.open(data.signedUrl, "_blank"); }}
+                              onClick={() => openStorageFile(ex.archivo_url!)}
                             >
                               <FileText className="h-3.5 w-3.5" /> Ver PDF
                             </Button>
