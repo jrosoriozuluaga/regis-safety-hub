@@ -2,8 +2,6 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
-import { WhatsAppFab } from "@/components/common/WhatsAppFab";
-
 export function AppLayout() {
   return (
     <SidebarProvider>
@@ -15,7 +13,6 @@ export function AppLayout() {
             <Outlet />
           </main>
         </div>
-        <WhatsAppFab />
       </div>
     </SidebarProvider>
   );
